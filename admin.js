@@ -1,270 +1,389 @@
-document.addEventListener("DOMContentLoaded", () => {
+// Helper global para notificaciones flotantes (Toasts)
+function mostrarNotificacion(mensaje, tipo = "exito") {
+    if (typeof Toastify !== "undefined") {
+        Toastify({
+            text: mensaje,
+            duration: 3000,
+            gravity: "top",
+            position: "right",
+            stopOnFocus: true,
+            style: {
+                background: tipo === "exito" 
+                    ? "linear-gradient(to right, #00b09b, #96c93d)" 
+                    : "linear-gradient(to right, #ff5f6d, #ffc371)",
+                borderRadius: "8px",
+                fontWeight: "bold",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                color: "#ffffff"
+            }
+        }).showToast();
+    } else {
+        alert(mensaje); // Fallback por seguridad
+    }
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
     
+    // VERIFICACIÓN DE SEGURIDAD
+    const usuarioActivo = sessionStorage.getItem("usuarioLogueado");
+    const rolUsuario = sessionStorage.getItem("rolUsuario");
+
+    if (!usuarioActivo || (rolUsuario !== "super_admin" && rolUsuario !== "admin")) {
+        mostrarNotificacion("Acceso denegado. Se requiere cuenta de Administrador.", "error");
+        setTimeout(() => { window.location.href = "login.html"; }, 1500);
+        return;
+    }
+
+    const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio"];
+    const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbzNq6zFAAEj7TTqdz5A78ZRcPhb8I80DlCm_F0E05T1lZWzuEkJ1aeStZb1K1vWM3X_UQ/exec";
+
+    // ESTADO DEL DÍA SELECCIONADO PARA LA GESTIÓN
+    let diaSeleccionado = "Sábado";
+    const selectDia = document.getElementById("select-dia-gestion");
+    
+    if (selectDia) {
+        selectDia.addEventListener("change", (e) => {
+            diaSeleccionado = e.target.value;
+            const badgeDia = document.getElementById("badge-dia-actual");
+            if (badgeDia) badgeDia.innerText = diaSeleccionado;
+            cargarPanelAdmin();
+        });
+    }
+
     // === CONTROL DE LOGOUT ===
     const btnLogout = document.getElementById("btn-logout");
     if (btnLogout) {
         btnLogout.addEventListener("click", () => {
             sessionStorage.clear();
-            alert("Sesión cerrada correctamente. ¡Buen descanso!");
-            window.location.href = "login.html";
+            mostrarNotificacion("Sesión cerrada correctamente. ¡Buen descanso!", "exito");
+            setTimeout(() => { window.location.href = "login.html"; }, 1200);
         });
     }
 
-    // === FUNCIONES GLOBALES ===
-    window.eliminarUsuario = (usernameKey) => {
+    // === FUNCIONES GLOBALES CRUD & CONVOCATORIA ===
+
+    window.eliminarUsuario = async (usernameKey) => {
         if (confirm(`¿Estás seguro de que querés eliminar permanentemente al usuario "${usernameKey}"?`)) {
-            let usuarios = JSON.parse(localStorage.getItem("usuariosDB")) || [];
-            usuarios = usuarios.filter(u => u.user !== usernameKey);
-            localStorage.setItem("usuariosDB", JSON.stringify(usuarios));
-            
-            let agendas = JSON.parse(localStorage.getItem("agendasStaff")) || {};
-            delete agendas[usernameKey];
-            localStorage.setItem("agendasStaff", JSON.stringify(agendas));
-
-            let convocados = JSON.parse(localStorage.getItem("convocadosStaff")) || [];
-            convocados = convocados.filter(u => u !== usernameKey);
-            localStorage.setItem("convocadosStaff", JSON.stringify(convocados));
-
-            let sectores = JSON.parse(localStorage.getItem("sectoresStaff")) || {};
-            delete sectores[usernameKey];
-            localStorage.setItem("sectoresStaff", JSON.stringify(sectores));
-
-            let propinas = JSON.parse(localStorage.getItem("propinasMozoStaff")) || {};
-            delete propinas[usernameKey];
-            localStorage.setItem("propinasMozoStaff", JSON.stringify(propinas));
-
-            alert("Usuario eliminado correctamente.");
-            window.location.reload();
+            try {
+                const { error } = await _supabase.from('usuarios').delete().eq('user_name', usernameKey);
+                if (error) throw error;
+                mostrarNotificacion("Usuario eliminado correctamente.", "exito");
+                cargarPanelAdmin();
+            } catch (err) {
+                console.error("Error al eliminar usuario:", err);
+                mostrarNotificacion("No se pudo eliminar el usuario.", "error");
+            }
         }
     };
 
-    window.guardarModificacion = (usernameOriginal) => {
+    window.guardarModificacion = async (usernameOriginal) => {
         const nombreEditado = document.getElementById(`edit-name-${usernameOriginal}`).value.trim();
         const usuarioEditado = document.getElementById(`edit-user-${usernameOriginal}`).value.trim().toLowerCase();
         const passEditada = document.getElementById(`edit-pass-${usernameOriginal}`).value;
         const rolEditado = document.getElementById(`edit-role-${usernameOriginal}`).value;
 
-        if (!usuarioEditado) { alert("El usuario no puede quedar vacío."); return; }
-
-        let usuarios = JSON.parse(localStorage.getItem("usuariosDB")) || [];
-        if (usuarioEditado !== usernameOriginal && usuarios.some(u => u.user === usuarioEditado)) {
-            alert("Ese nombre de usuario ya está ocupado.");
-            return;
+        if (!usuarioEditado) { 
+            mostrarNotificacion("El usuario no puede quedar vacío.", "error"); 
+            return; 
         }
 
-        const index = usuarios.findIndex(u => u.user === usernameOriginal);
-        if (index !== -1) {
-            usuarios[index].nombreReal = nombreEditado;
-            usuarios[index].user = usuarioEditado;
-            usuarios[index].pass = passEditada;
-            usuarios[index].rol = rolEditado;
-            localStorage.setItem("usuariosDB", JSON.stringify(usuarios));
+        try {
+            const { error } = await _supabase
+                .from('usuarios')
+                .update({ nombre_real: nombreEditado, user_name: usuarioEditado, pass: passEditada, rol: rolEditado })
+                .eq('user_name', usernameOriginal);
 
-            // Migraciones de llaves en LocalStorage
-            if (usuarioEditado !== usernameOriginal) {
-                let agendas = JSON.parse(localStorage.getItem("agendasStaff")) || {};
-                if (agendas[usernameOriginal]) { agendas[usuarioEditado] = agendas[usernameOriginal]; delete agendas[usernameOriginal]; localStorage.setItem("agendasStaff", JSON.stringify(agendas)); }
+            if (error) throw error;
+            mostrarNotificacion("Usuario modificado con éxito.", "exito");
+            cargarPanelAdmin();
+        } catch (err) {
+            console.error("Error al actualizar usuario:", err);
+            mostrarNotificacion(`Error: ${err.message || JSON.stringify(err)}`, "error");
+        }
+    };
 
-                let convocados = JSON.parse(localStorage.getItem("convocadosStaff")) || [];
-                if (convocados.includes(usernameOriginal)) { convocados = convocados.map(u => u === usernameOriginal ? usuarioEditado : u); localStorage.setItem("convocadosStaff", JSON.stringify(convocados)); }
+    window.alternarConvocatoria = async (username, estaConvocado) => {
+        try {
+            if (estaConvocado) {
+                const { error } = await _supabase
+                    .from('convocados')
+                    .delete()
+                    .eq('user_name', username)
+                    .eq('dia', diaSeleccionado);
 
-                let sectores = JSON.parse(localStorage.getItem("sectoresStaff")) || {};
-                if (sectores[usernameOriginal]) { sectores[usuarioEditado] = sectores[usernameOriginal]; delete sectores[usernameOriginal]; localStorage.setItem("sectoresStaff", JSON.stringify(sectores)); }
+                if (error) throw error;
+                mostrarNotificacion("Mozo removido de la convocatoria.", "exito");
+            } else {
+                const { error } = await _supabase
+                    .from('convocados')
+                    .insert([
+                        { user_name: username, sector: "Principal", propina_individual: 0, dia: diaSeleccionado }
+                    ]);
 
-                let propinas = JSON.parse(localStorage.getItem("propinasMozoStaff")) || {};
-                if (propinas[usernameOriginal]) { propinas[usuarioEditado] = propinas[usernameOriginal]; delete propinas[usernameOriginal]; localStorage.setItem("propinasMozoStaff", JSON.stringify(propinas)); }
+                if (error) throw error;
+                mostrarNotificacion("Mozo convocado con éxito.", "exito");
             }
 
-            alert("Usuario modificado con éxito.");
-            window.location.reload();
+            cargarPanelAdmin();
+        } catch (err) {
+            console.error("Error en convocatoria:", err);
+            mostrarNotificacion(`Error de Supabase: ${err.message || JSON.stringify(err)}`, "error");
         }
     };
 
-    window.alternarConvocatoria = (username) => {
-        let convocados = JSON.parse(localStorage.getItem("convocadosStaff")) || [];
-        if (convocados.includes(username)) {
-            convocados = convocados.filter(u => u !== username);
-        } else {
-            convocados.push(username);
+    window.guardarSectorMozo = async (username, sectorVal) => {
+        try {
+            const { error } = await _supabase
+                .from('convocados')
+                .update({ sector: sectorVal })
+                .eq('user_name', username)
+                .eq('dia', diaSeleccionado);
+
+            if (error) throw error;
+            mostrarNotificacion("Sector guardado correctamente.", "exito");
+        } catch (err) {
+            console.error("Error al actualizar sector:", err);
+            mostrarNotificacion("Error al guardar el sector.", "error");
         }
-        localStorage.setItem("convocadosStaff", JSON.stringify(convocados));
-        window.location.reload();
     };
 
-    // FUNCIÓN: GUARDAR SECTOR INDIVIDUAL
-    window.guardarSectorMozo = (username, sectorVal) => {
-        let sectores = JSON.parse(localStorage.getItem("sectoresStaff")) || {};
-        sectores[username] = sectorVal;
-        localStorage.setItem("sectoresStaff", JSON.stringify(sectores));
-    };
+    window.guardarPropinaMozo = async (username, montoVal) => {
+        try {
+            const { error } = await _supabase
+                .from('convocados')
+                .update({ propina_individual: Number(montoVal) || 0 })
+                .eq('user_name', username)
+                .eq('dia', diaSeleccionado);
 
-    // FUNCIÓN: GUARDAR PROPINA INDIVIDUAL
-    window.guardarPropinaMozo = (username, montoVal) => {
-        let propinas = JSON.parse(localStorage.getItem("propinasMozoStaff")) || {};
-        propinas[username] = montoVal;
-        localStorage.setItem("propinasMozoStaff", JSON.stringify(propinas));
-    };
-
-    // === RENDERS Y CONTROL ===
-    const usuariosDB = JSON.parse(localStorage.getItem("usuariosDB")) || [];
-    const agendasDB = JSON.parse(localStorage.getItem("agendasStaff")) || {};
-    const convocadosDB = JSON.parse(localStorage.getItem("convocadosStaff")) || [];
-    const sectoresDB = JSON.parse(localStorage.getItem("sectoresStaff")) || {};
-    const propinasDB = JSON.parse(localStorage.getItem("propinasMozoStaff")) || {};
-
-    const listaMozos = document.getElementById("lista-mozos-confirmados");
-    const listaPendientes = document.getElementById("lista-pendientes");
-    const tablaCRUD = document.getElementById("tabla-usuarios-crud");
-    const contenedorEquipoFinal = document.getElementById("equipo-convocado-final");
-
-    if(listaMozos) listaMozos.innerHTML = "";
-    if(listaPendientes) listaPendientes.innerHTML = "";
-    if(tablaCRUD) tablaCRUD.innerHTML = "";
-    if(contenedorEquipoFinal) contenedorEquipoFinal.innerHTML = "";
-
-    let faltanConfirmar = [];
-    let cuentaConvocados = 0;
-
-    const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio"];
-
-    usuariosDB.forEach(usuario => {
-        // 1. TABLA CRUD
-        if (usuario.rol !== "super_admin" && tablaCRUD) {
-            const filaHTML = `
-                <tr>
-                    <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-name-${usuario.user}" value="${usuario.nombreReal || ''}"></td>
-                    <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center fw-bold text-warning" id="edit-user-${usuario.user}" value="${usuario.user}"></td>
-                    <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-pass-${usuario.user}" value="${usuario.pass}"></td>
-                    <td>
-                        <select class="form-select form-select-sm bg-dark text-light border-secondary text-center" id="edit-role-${usuario.user}">
-                            <option value="mozo" ${usuario.rol === 'mozo' ? 'selected' : ''}>Mozo</option>
-                            <option value="bartender" ${usuario.rol === 'bartender' ? 'selected' : ''}>Bartender</option>
-                            <option value="admin_barra" ${usuario.rol === 'admin_barra' ? 'selected' : ''}>Jefe de Barra</option>
-                        </select>
-                    </td>
-                    <td>
-                        <div class="d-flex gap-2 justify-content-center">
-                            <button class="btn btn-sm btn-success px-2" onclick="guardarModificacion('${usuario.user}')" title="Guardar"><i class="bi bi-save"></i></button>
-                            <button class="btn btn-sm btn-danger px-2" onclick="eliminarUsuario('${usuario.user}')" title="Eliminar"><i class="bi bi-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>
-            `;
-            tablaCRUD.innerHTML += filaHTML;
+            if (error) throw error;
+        } catch (err) {
+            console.error("Error al guardar propina:", err);
+            mostrarNotificacion("Error al actualizar el monto de propina.", "error");
         }
+    };
 
-        // 2. FILTRADO Y CONVOCATORIA DE MOZOS
-        if (usuario.rol === "mozo") {
-            const nombreMostrar = usuario.nombreReal || usuario.user;
-            const agendaUsuario = agendasDB[usuario.user];
-            const estaConvocado = convocadosDB.includes(usuario.user);
-            const sectorActual = sectoresDB[usuario.user] || "Principal";
-            const propinaActual = propinasDB[usuario.user] || "0";
+    // === EXPORTACIÓN DE MOZOS A GOOGLE SHEETS (CON FECHA YYYY-MM-DD DIRECTA) ===
+    window.exportarMozosA_GoogleSheets = async () => {
+        try {
+            const inputsPropinas = document.querySelectorAll('#equipo-convocado-final input[type="number"]');
+            for (const input of inputsPropinas) {
+                const username = input.getAttribute('data-user');
+                const monto = Number(input.value) || 0;
+                if (username) {
+                    await guardarPropinaMozo(username, monto);
+                }
+            }
 
-            if (agendaUsuario && agendaUsuario.dias && agendaUsuario.dias.sabado === true) {
-                
-                if (estaConvocado && contenedorEquipoFinal) {
-                    cuentaConvocados++;
-                    
-                    let optionsHTML = "";
-                    opcionesSectores.forEach(s => {
-                        optionsHTML += `<option value="${s}" ${s === sectorActual ? 'selected' : ''}>${s}</option>`;
-                    });
+            const hoy = new Date();
+            const fechaDiariaExacta = hoy.toISOString().split('T')[0];
 
-                    // Fila limpia de convocado con selector de sector e input de propina
-                    contenedorEquipoFinal.innerHTML += `
-                        <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-success p-2" style="background-color: #121f15 !important;">
-                            <div class="fw-bold text-success me-3">
-                                <i class="bi bi-check-circle-fill me-1"></i>${nombreMostrar}
-                            </div>
-                            
-                            <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-end">
-                                <!-- Selector de Sector -->
-                                <div class="input-group input-group-sm" style="max-width: 170px;">
-                                    <span class="input-group-text bg-dark text-secondary border-secondary"><i class="bi bi-geo-alt"></i></span>
-                                    <select class="form-select form-select-sm bg-dark text-light border-secondary" onchange="guardarSectorMozo('${usuario.user}', this.value)">
-                                        ${optionsHTML}
-                                    </select>
+            const { data: convocados, error } = await _supabase
+                .from('convocados')
+                .select(`user_name, sector, propina_individual, semana, dia, usuarios (nombre_real, rol)`);
+
+            if (error) throw error;
+
+            const normalizarTexto = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
+            const diaActualNorm = normalizarTexto(diaSeleccionado);
+
+            const mozosConvocados = (convocados || []).filter(c => {
+                const esMozo = c.usuarios && c.usuarios.rol === 'mozo';
+                const diaConvocadoNorm = normalizarTexto(c.dia || 'Sábado');
+                return esMozo && (diaConvocadoNorm === diaActualNorm);
+            });
+
+            if (mozosConvocados.length === 0) {
+                mostrarNotificacion(`No hay mozos convocados para el día ${diaSeleccionado}.`, "error");
+                return;
+            }
+
+            const filasProcesadas = mozosConvocados.map(item => ({
+                semana: fechaDiariaExacta,
+                usuario: item.usuarios.nombre_real || item.user_name,
+                rol: `Mozo (${diaSeleccionado})`,
+                sector: item.sector || 'Principal',
+                propina: item.propina_individual || 0
+            }));
+
+            mostrarNotificacion("Enviando Reporte a Google Sheets...", "exito");
+
+            await fetch(URL_WEBHOOK_SHEETS, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tipo: "mozos", filas: filasProcesadas })
+            });
+
+            mostrarNotificacion("¡Reporte de Mozos exportado con éxito!", "exito");
+
+        } catch (err) {
+            console.error("Error al exportar mozos:", err);
+            mostrarNotificacion("Ocurrió un error al exportar los mozos.", "error");
+        }
+    };
+
+    // === CARGA ASÍNCRONA DE DATOS ===
+    async function cargarPanelAdmin() {
+        try {
+            const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
+                _supabase.from('usuarios').select('*'),
+                _supabase.from('agendas').select('*'),
+                _supabase.from('convocados').select('*')
+            ]);
+
+            if (resUsuarios.error) throw resUsuarios.error;
+            if (resAgendas.error) throw resAgendas.error;
+            if (resConvocados.error) throw resConvocados.error;
+
+            const usuariosDB = resUsuarios.data || [];
+            const agendasDB = resAgendas.data || [];
+            const convocadosDB = resConvocados.data || [];
+
+            const listaMozos = document.getElementById("lista-mozos-confirmados");
+            const tablaCRUD = document.getElementById("tabla-usuarios-crud");
+            const contenedorEquipoFinal = document.getElementById("equipo-convocado-final");
+
+            if(listaMozos) listaMozos.innerHTML = "";
+            if(tablaCRUD) tablaCRUD.innerHTML = "";
+            if(contenedorEquipoFinal) contenedorEquipoFinal.innerHTML = "";
+
+            let cuentaConvocados = 0;
+
+            // Mapea el día a minúsculas sin tildes para la agenda (ej: Miércoles -> miercoles)
+            const claveDiaAgenda = diaSeleccionado.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+            usuariosDB.forEach(usuario => {
+                // RENDER TABLA CRUD USUARIOS
+                if (usuario.rol !== "super_admin" && tablaCRUD) {
+                    const filaHTML = `
+                        <tr>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-name-${usuario.user_name}" value="${usuario.nombre_real || ''}"></td>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center fw-bold text-warning" id="edit-user-${usuario.user_name}" value="${usuario.user_name}"></td>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-pass-${usuario.user_name}" value="${usuario.pass}"></td>
+                            <td>
+                                <select class="form-select form-select-sm bg-dark text-light border-secondary text-center" id="edit-role-${usuario.user_name}">
+                                    <option value="mozo" ${usuario.rol === 'mozo' ? 'selected' : ''}>Mozo</option>
+                                    <option value="bartender" ${usuario.rol === 'bartender' ? 'selected' : ''}>Bartender</option>
+                                    <option value="admin_barra" ${usuario.rol === 'admin_barra' ? 'selected' : ''}>Jefe de Barra</option>
+                                </select>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2 justify-content-center">
+                                    <button class="btn btn-sm btn-success px-2" onclick="guardarModificacion('${usuario.user_name}')" title="Guardar"><i class="bi bi-save"></i></button>
+                                    <button class="btn btn-sm btn-danger px-2" onclick="eliminarUsuario('${usuario.user_name}')" title="Eliminar"><i class="bi bi-trash"></i></button>
                                 </div>
-
-                                <!-- Input Propina Individual -->
-                                <div class="input-group input-group-sm" style="max-width: 140px;">
-                                    <span class="input-group-text bg-dark text-warning border-secondary"><i class="bi bi-cash"></i></span>
-                                    <input type="number" class="form-control bg-dark text-light border-secondary" placeholder="Propina $" value="${propinaActual}" onchange="guardarPropinaMozo('${usuario.user}', this.value)">
-                                </div>
-
-                                <!-- Botón Desconvocar -->
-                                <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="alternarConvocatoria('${usuario.user}')" title="Quitar">
-                                    <i class="bi bi-person-dash"></i>
-                                </button>
-                            </div>
-                        </div>
+                            </td>
+                        </tr>
                     `;
+                    tablaCRUD.innerHTML += filaHTML;
                 }
 
-                const itemHTML = `
-                    <div class="list-group-item list-group-item-custom d-flex justify-content-between align-items-center rounded-3 mb-2">
-                        <div class="ms-2 me-auto">
-                            <div class="fw-bold text-light">${nombreMostrar}</div>
-                            <span class="${agendaUsuario.observaciones ? 'text-warning' : 'text-muted'} small">
-                                ${agendaUsuario.observaciones ? 'Nota: ' + agendaUsuario.observaciones : 'Sin observaciones.'}
-                            </span>
-                        </div>
-                        <button class="btn btn-sm ${estaConvocado ? 'btn-success' : 'btn-outline-warning'} fw-bold px-3 py-1" onclick="alternarConvocatoria('${usuario.user}')">
-                            ${estaConvocado ? '<i class="bi bi-person-check-fill"></i> Convocado' : '<i class="bi bi-person-plus"></i> Seleccionar'}
-                        </button>
-                    </div>
-                `;
-                if (listaMozos) listaMozos.innerHTML += itemHTML;
+                if (usuario.rol === "mozo") {
+                    const nombreMostrar = usuario.nombre_real || usuario.user_name;
+                    const agendaUsuario = agendasDB.find(a => a.user_name === usuario.user_name);
+                    
+                    // Buscar si está convocado EL DÍA SELECCIONADO
+                    const registroConvocado = convocadosDB.find(c => c.user_name === usuario.user_name && (c.dia === diaSeleccionado || (!c.dia && diaSeleccionado === 'Sábado')));
+                    const estaConvocado = !!registroConvocado;
 
-            } else {
-                faltanConfirmar.push(nombreMostrar);
+                    const estaDisponibleEsteDia = agendaUsuario && agendaUsuario[claveDiaAgenda] === true;
+
+                    if (estaDisponibleEsteDia) {
+                        if (estaConvocado && contenedorEquipoFinal) {
+                            cuentaConvocados++;
+                            const sectorActual = registroConvocado.sector || "Principal";
+                            const propinaActual = registroConvocado.propina_individual || 0;
+
+                            let optionsHTML = "";
+                            opcionesSectores.forEach(s => {
+                                optionsHTML += `<option value="${s}" ${s === sectorActual ? 'selected' : ''}>${s}</option>`;
+                            });
+
+                            contenedorEquipoFinal.innerHTML += `
+                                <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-success p-2" style="background-color: #121f15 !important;">
+                                    <div class="fw-bold text-success me-3">
+                                        <i class="bi bi-check-circle-fill me-1"></i>${nombreMostrar}
+                                    </div>
+                                    
+                                    <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-end">
+                                        <div class="input-group input-group-sm" style="max-width: 170px;">
+                                            <span class="input-group-text bg-dark text-secondary border-secondary"><i class="bi bi-geo-alt"></i></span>
+                                            <select class="form-select form-select-sm bg-dark text-light border-secondary" onchange="guardarSectorMozo('${usuario.user_name}', this.value)">
+                                                ${optionsHTML}
+                                            </select>
+                                        </div>
+
+                                        <div class="input-group input-group-sm" style="max-width: 140px;">
+                                            <span class="input-group-text bg-dark text-warning border-secondary"><i class="bi bi-cash"></i></span>
+                                            <input type="number" class="form-control bg-dark text-light border-secondary" placeholder="Propina $" data-user="${usuario.user_name}" value="${propinaActual}" onchange="guardarPropinaMozo('${usuario.user_name}', this.value)">
+                                        </div>
+
+                                        <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="alternarConvocatoria('${usuario.user_name}', true)" title="Quitar">
+                                            <i class="bi bi-person-dash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+
+                        const itemHTML = `
+                            <div class="list-group-item list-group-item-custom d-flex justify-content-between align-items-center rounded-3 mb-2">
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold text-light">${nombreMostrar}</div>
+                                    <span class="${agendaUsuario.observaciones ? 'text-warning' : 'text-muted'} small">
+                                        ${agendaUsuario.observaciones ? 'Nota: ' + agendaUsuario.observaciones : 'Sin observaciones.'}
+                                    </span>
+                                </div>
+                                <button class="btn btn-sm ${estaConvocado ? 'btn-success' : 'btn-outline-warning'} fw-bold px-3 py-1" onclick="alternarConvocatoria('${usuario.user_name}', ${estaConvocado})">
+                                    ${estaConvocado ? '<i class="bi bi-person-check-fill"></i> Convocado' : '<i class="bi bi-person-plus"></i> Seleccionar'}
+                                </button>
+                            </div>
+                        `;
+                        if (listaMozos) listaMozos.innerHTML += itemHTML;
+                    }
+                }
+            });
+
+            if (contenedorEquipoFinal && cuentaConvocados === 0) {
+                contenedorEquipoFinal.innerHTML = `<p class="text-muted small text-center my-2">No seleccionaste mozos para trabajar el ${diaSeleccionado} todavía.</p>`;
             }
-        }
-    });
 
-    if (contenedorEquipoFinal && cuentaConvocados === 0) {
-        contenedorEquipoFinal.innerHTML = `<p class="text-muted small text-center my-2">No seleccionaste mozos para trabajar todavía.</p>`;
-    }
-
-    if (listaPendientes) {
-        if (faltanConfirmar.length > 0) {
-            listaPendientes.innerHTML = `
-                <div class="alert alert-danger bg-danger bg-opacity-10 border-danger border-opacity-25 text-danger small mb-0 rounded-3" role="alert">
-                    <i class="bi bi-x-circle-fill me-2"></i><strong>Falta confirmar disponibilidad:</strong> ${faltanConfirmar.join(", ")}.
-                </div>
-            `;
-        } else {
-            listaPendientes.innerHTML = `
-                <div class="alert alert-success bg-success bg-opacity-10 border-success border-opacity-25 text-success small mb-0 rounded-3" role="alert">
-                    <i class="bi bi-check-circle-fill me-2"></i><strong>¡Mozo-listo!</strong> Todo tu equipo cargó su agenda.
-                </div>
-            `;
+        } catch (err) {
+            console.error("Error al cargar panel de Admin:", err);
         }
     }
 
-    // === ALTA DE NUEVO MOZO ===
+    await cargarPanelAdmin();
+
+    // FORMULARIO DE ALTA DE PERSONAL
     const formAlta = document.getElementById("formAltaPersonal");
     if (formAlta) {
-        formAlta.addEventListener("submit", (e) => {
+        formAlta.addEventListener("submit", async (e) => {
             e.preventDefault();
             const nombre = document.getElementById("new-name").value.trim();
             const username = document.getElementById("new-username").value.trim().toLowerCase();
             const password = document.getElementById("new-password").value;
-            const rol = document.getElementById("new-role").value; // Leemos el rol seleccionado
+            const rolSelect = document.getElementById("new-role");
+            const rol = rolSelect ? rolSelect.value : "mozo";
 
-            let usuariosActuales = JSON.parse(localStorage.getItem("usuariosDB")) || [];
-            if (usuariosActuales.some(u => u.user === username)) { 
-                alert("Este usuario ya existe."); 
-                return; 
+            try {
+                const { error } = await _supabase
+                    .from('usuarios')
+                    .insert([{ user_name: username, nombre_real: nombre, pass: password, rol: rol }]);
+
+                if (error) {
+                    mostrarNotificacion(`Error de Supabase: ${error.message}`, "error");
+                    return;
+                }
+
+                mostrarNotificacion(`¡Usuario ${nombre} (${rol.toUpperCase()}) creado con éxito!`, "exito");
+                formAlta.reset();
+                cargarPanelAdmin();
+
+            } catch (err) {
+                console.error("Error al dar de alta usuario:", err);
+                mostrarNotificacion(`Error crítico al registrar: ${err.message || JSON.stringify(err)}`, "error");
             }
-
-            usuariosActuales.push({ user: username, pass: password, rol: rol, nombreReal: nombre });
-            localStorage.setItem("usuariosDB", JSON.stringify(usuariosActuales));
-
-            alert(`¡Usuario ${nombre} (${rol.toUpperCase()}) creado con éxito!`);
-            formAlta.reset();
-            window.location.reload(); 
         });
     }
 });

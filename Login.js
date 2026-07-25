@@ -1,56 +1,116 @@
-// Definimos los usuarios iniciales por defecto si el sistema está vacío
-const usuariosIniciales = [
-    { user: "benja_admin", pass: "boca1234", rol: "super_admin" },
-    { user: "bauti_barra", pass: "bauti1234", rol: "admin_barra" },
-    { user: "jandina", pass: "mozo1", rol: "mozo" },
-    { user: "mromano", pass: "bartender1", rol: "bartender" }
-];
-
-// Si no existen usuarios en el localStorage, los creamos con los iniciales
-if (!localStorage.getItem("usuariosDB")) {
-    localStorage.setItem("usuariosDB", JSON.stringify(usuariosIniciales));
+// Helper global para notificaciones flotantes (Toasts)
+function mostrarNotificacion(mensaje, tipo = "exito") {
+    if (typeof Toastify !== "undefined") {
+        Toastify({
+            text: mensaje,
+            duration: 3000,
+            gravity: "top",
+            position: "right",
+            stopOnFocus: true,
+            style: {
+                background: tipo === "exito" 
+                    ? "linear-gradient(to right, #00b09b, #96c93d)" 
+                    : "linear-gradient(to right, #ff5f6d, #ffc371)",
+                borderRadius: "8px",
+                fontWeight: "bold",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                color: "#ffffff"
+            }
+        }).showToast();
+    } else {
+        alert(mensaje);
+    }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    const loginForm = document.getElementById("formLogin");
+    const formLogin = document.getElementById("formLogin");
 
-    if (loginForm) {
-        loginForm.addEventListener("submit", (e) => {
+    if (formLogin) {
+        formLogin.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const usernameInput = document.getElementById("username").value.trim();
-            const passwordInput = document.getElementById("password").value;
+            const inputUsuario = formLogin.querySelector("input[type='text']") || document.getElementById("username");
+            const inputPassword = formLogin.querySelector("input[type='password']") || document.getElementById("password");
+            const btnSubmit = formLogin.querySelector("button[type='submit']");
 
-            // Levantamos los usuarios actualizados que están guardados en localStorage
-            const usuariosMock = JSON.parse(localStorage.getItem("usuariosDB"));
+            if (!inputUsuario || !inputPassword) {
+                mostrarNotificacion("Error en el formulario: No se encontraron los campos.", "error");
+                return;
+            }
 
-            const usuarioEncontrado = usuariosMock.find(
-                u => u.user === usernameInput && u.pass === passwordInput
-            );
+            const usuarioVal = inputUsuario.value.trim().toLowerCase();
+            const passVal = inputPassword.value;
 
-            if (usuarioEncontrado) {
-                // Guardamos la sesión activa en el navegador
-                sessionStorage.setItem("usuarioLogueado", usuarioEncontrado.user);
-                sessionStorage.setItem("rolUsuario", usuarioEncontrado.rol);
+            if (!usuarioVal || !passVal) {
+                mostrarNotificacion("Por favor, completá todos los campos.", "error");
+                return;
+            }
 
-                // Redirección por roles
-                switch (usuarioEncontrado.rol) {
-                    case "super_admin":
-                        window.location.href = "admin.html";
-                        break;
-                    case "admin_barra":
-                        window.location.href = "jefe_barra.html";
-                        break;
-                    case "mozo":
-                    case "bartender":
-                        window.location.href = "dashboard.html";
-                        break;
-                    default:
-                        alert("Error: Rol no reconocido.");
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = `
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Validando datos...
+                `;
+            }
+
+            try {
+                if (typeof _supabase === "undefined") {
+                    mostrarNotificacion("Error: No se encontró la conexión a Supabase.", "error");
+                    restablecerBoton(btnSubmit);
+                    return;
                 }
-            } else {
-                alert("Usuario o contraseña incorrectos. Volvé a intentar.");
+
+                // Consulta exacta usando user_name y pass
+                const { data: usuario, error } = await _supabase
+                    .from('usuarios')
+                    .select('*')
+                    .eq('user_name', usuarioVal)
+                    .eq('pass', passVal)
+                    .maybeSingle();
+
+                if (error) {
+                    console.error("Error al consultar Supabase:", error);
+                    mostrarNotificacion("Ocurrió un error al consultar la base de datos.", "error");
+                    restablecerBoton(btnSubmit);
+                    return;
+                }
+
+                if (!usuario) {
+                    mostrarNotificacion("Usuario o contraseña incorrectos.", "error");
+                    restablecerBoton(btnSubmit);
+                    return;
+                }
+
+                // Guardamos la sesión activa
+                sessionStorage.setItem("usuarioLogueado", usuario.user_name);
+                sessionStorage.setItem("rolUsuario", usuario.rol);
+
+                mostrarNotificacion(`¡Bienvenido, ${usuario.nombre_real || usuario.user_name}!`, "exito");
+
+                // Redirección según rol actualizada
+                setTimeout(() => {
+                    if (usuario.rol === "superadministrador" || usuario.rol === "admin" || usuario.rol === "super_admin") {
+                        window.location.href = "admin.html";
+                    } else if (usuario.rol === "administrador_barra" || usuario.rol === "barman" || usuario.rol === "admin_barra") {
+                        window.location.href = "jefe_barra.html";
+                    } else {
+                        window.location.href = "dashboard.html";
+                    }
+                }, 1000);
+
+            } catch (err) {
+                console.error("Error crítico:", err);
+                mostrarNotificacion("No se pudo conectar con el servidor.", "error");
+                restablecerBoton(btnSubmit);
             }
         });
+    }
+
+    function restablecerBoton(btn) {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `ENTRAR`;
+        }
     }
 });
