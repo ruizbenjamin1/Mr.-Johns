@@ -37,6 +37,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sectoresBarra = ["Vip", "Cantina", "Altillo", "Principal", "Patio", "Evento"];
     const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbzNq6zFAAEj7TTqdz5A78ZRcPhb8I80DlCm_F0E05T1lZWzuEkJ1aeStZb1K1vWM3X_UQ/exec";
 
+    // === SEMANA ACTUAL (LUNES EN FORMATO YYYY-MM-DD) — usa la función global de supabase_client.js ===
+    const semanaActualStr = obtenerLunesSemanaActual();
+
     // ESTADO DEL DÍA SELECCIONADO
     let diaSeleccionado = "Sábado";
     const selectDia = document.getElementById("select-dia-gestion");
@@ -97,6 +100,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
+    // === CONVOCATORIA (AHORA ANCLADA A LA SEMANA ACTUAL) ===
     window.alternarConvocatoriaBartender = async (username, estaConvocado) => {
         try {
             if (estaConvocado) {
@@ -104,7 +108,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     .from('convocados')
                     .delete()
                     .eq('user_name', username)
-                    .eq('dia', diaSeleccionado);
+                    .eq('dia', diaSeleccionado)
+                    .eq('semana', semanaActualStr);
 
                 if (error) throw error;
                 mostrarNotificacion("Bartender removido de la convocatoria.", "exito");
@@ -112,7 +117,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const { error } = await _supabase
                     .from('convocados')
                     .insert([
-                        { user_name: username, sector: "Principal", propina_individual: 0, dia: diaSeleccionado }
+                        { user_name: username, sector: "Principal", propina_individual: 0, dia: diaSeleccionado, semana: semanaActualStr }
                     ]);
 
                 if (error) throw error;
@@ -132,7 +137,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .from('convocados')
                 .update({ sector: sectorVal })
                 .eq('user_name', username)
-                .eq('dia', diaSeleccionado);
+                .eq('dia', diaSeleccionado)
+                .eq('semana', semanaActualStr);
 
             if (error) throw error;
             mostrarNotificacion("Barra asignada correctamente.", "exito");
@@ -142,7 +148,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // === GUARDAR PROPINA EN SUPABASE ===
+    // === GUARDAR PROPINA EN SUPABASE (ANCLADA A LA SEMANA ACTUAL) ===
     window.guardarPropinaBarra = async (sectorBarra, montoVal) => {
         try {
             const sectorLimpio = sectorBarra.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, "").trim();
@@ -150,7 +156,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const { data: propinasExistentes } = await _supabase
                 .from('propinas_barras')
                 .select('*')
-                .eq('sector_barra', sectorLimpio);
+                .eq('sector_barra', sectorLimpio)
+                .eq('semana', semanaActualStr);
 
             const registroPropina = (propinasExistentes || []).find(pb => pb.dia === diaSeleccionado) || (propinasExistentes || [])[0];
 
@@ -160,6 +167,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     .update({ 
                         monto: Number(montoVal) || 0, 
                         dia: diaSeleccionado,
+                        semana: semanaActualStr,
                         updated_at: new Date().toISOString() 
                     })
                     .eq('id', registroPropina.id);
@@ -169,7 +177,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     .insert([{ 
                         sector_barra: sectorLimpio, 
                         monto: Number(montoVal) || 0, 
-                        dia: diaSeleccionado 
+                        dia: diaSeleccionado,
+                        semana: semanaActualStr
                     }]);
             }
 
@@ -178,7 +187,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // === EXPORTACIÓN DE BARRAS A GOOGLE SHEETS ===
+    // === EXPORTACIÓN DE BARRAS A GOOGLE SHEETS (FILTRADO POR SEMANA ACTUAL) ===
     window.exportarBarraA_GoogleSheets = async () => {
         try {
             const mapaPropinasPantalla = {};
@@ -196,11 +205,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
-            const hoy = new Date();
-            const fechaDiariaExacta = hoy.toISOString().split('T')[0];
-
             const [resConvocados, resUsuarios] = await Promise.all([
-                _supabase.from('convocados').select('*'),
+                _supabase.from('convocados').select('*').eq('semana', semanaActualStr),
                 _supabase.from('usuarios').select('*')
             ]);
 
@@ -232,7 +238,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const montoFinal = mapaPropinasPantalla[sectorKey] !== undefined ? mapaPropinasPantalla[sectorKey] : 0;
 
                 return {
-                    semana: fechaDiariaExacta,
+                    semana: semanaActualStr,
                     usuario: datosUsuario ? (datosUsuario.nombre_real || datosUsuario.user_name) : item.user_name,
                     rol: `Bartender (${diaSeleccionado})`,
                     sector: sectorOriginal,
@@ -260,14 +266,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // === 4. CARGA ASÍNCRONA DE DATOS ===
+    // === 4. CARGA ASÍNCRONA DE DATOS (CONVOCADOS Y PROPINAS FILTRADOS POR SEMANA ACTUAL) ===
     async function cargarPanelJefeBarra() {
         try {
             const [resUsuarios, resAgendas, resConvocados, resPropinasBarras] = await Promise.all([
                 _supabase.from('usuarios').select('*'),
                 _supabase.from('agendas').select('*'),
-                _supabase.from('convocados').select('*'),
-                _supabase.from('propinas_barras').select('*')
+                _supabase.from('convocados').select('*').eq('semana', semanaActualStr),
+                _supabase.from('propinas_barras').select('*').eq('semana', semanaActualStr)
             ]);
 
             if (resUsuarios.error) throw resUsuarios.error;

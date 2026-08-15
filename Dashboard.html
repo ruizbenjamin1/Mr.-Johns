@@ -166,38 +166,108 @@
             <h5 class="fw-bold mb-3 text-warning"><i class="bi bi-journal-richtext me-2"></i>Consulta de Carta</h5>
             
             <ul class="nav nav-tabs mb-3 justify-content-center" id="menuTabs" role="tablist">
-                <li class="nav-item w-50 text-center" role="presentation">
-                    <button class="nav-link active w-100" id="comida-tab" data-bs-toggle="tab" data-bs-target="#comida" type="button" role="tab">🧆 Comidas</button>
+                <li class="nav-item w-50 text-center" id="tab-item-comida" role="presentation">
+                    <button class="nav-link active w-100 fw-bold" id="comida-tab" data-bs-toggle="tab" data-bs-target="#comida" type="button" role="tab">🧆 Comidas</button>
                 </li>
-                <li class="nav-item w-50 text-center" role="presentation">
-                    <button class="nav-link w-100" id="bebida-tab" data-bs-toggle="tab" data-bs-target="#bebida" type="button" role="tab">🍹 Bebidas</button>
+                <li class="nav-item w-50 text-center" id="tab-item-bebida" role="presentation">
+                    <button class="nav-link w-100 fw-bold" id="bebida-tab" data-bs-toggle="tab" data-bs-target="#bebida" type="button" role="tab">🍹 Bebidas</button>
+                </li>
+                <!-- Solapa de Stock oculta por defecto (solo se muestra para bartenders desde JS) -->
+                <li class="nav-item text-center d-none" id="tab-item-stock" role="presentation">
+                    <button class="nav-link w-100 fw-bold" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock" type="button" role="tab">📦 Stock</button>
                 </li>
             </ul>
 
             <div class="tab-content" id="menuTabsContent">
                 <!-- PESTAÑA COMIDAS -->
                 <div class="tab-pane fade show active" id="comida" role="tabpanel">
-                    <div class="card card-custom p-3 mb-2 rounded-3">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <h6 class="fw-bold mb-1 text-light">Hamburguesa Classic</h6>
-                            <span class="badge bg-secondary">$6.500</span>
+                    <!-- Buscador de Comidas -->
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-light">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" id="buscadorComida" class="form-control bg-dark border-secondary text-light shadow-none" placeholder="Buscar comida por nombre o ingredientes...">
                         </div>
-                        <p class="text-muted small mb-2">Medallón de carne 180g, queso cheddar, lechuga, tomate y aderezo de la casa en pan brioche.</p>
-                        <div>
-                            <span class="badge bg-danger bg-opacity-25 text-danger border border-danger badge-allergen">CON TACC</span>
-                        </div>
+                    </div>
+                    <!-- Contenedor dinámico de comidas -->
+                    <div id="contenedorComidas">
+                        <!-- JS inyectará las tarjetas acá automáticamente -->
                     </div>
                 </div>
 
                 <!-- PESTAÑA BEBIDAS -->
                 <div class="tab-pane fade" id="bebida" role="tabpanel">
-                    <div class="card card-custom p-3 mb-2 rounded-3">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <h6 class="fw-bold mb-1 text-light">Fernet Branca Clásico</h6>
-                            <span class="badge bg-secondary">$3.500</span>
+                    <!-- Buscador de Bebidas -->
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-light">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" id="buscadorBebida" class="form-control bg-dark border-secondary text-light shadow-none" placeholder="Buscar bebida por nombre...">
                         </div>
-                        <p class="text-muted small mb-2">70% Coca-Cola, 30% Fernet Branca, hielo roca. Servido en vaso de trago largo.</p>
                     </div>
+                    <!-- Contenedor dinámico de bebidas -->
+                    <div id="contenedorBebidas">
+                        <!-- JS inyectará las tarjetas acá automáticamente -->
+                    </div>
+                </div>
+
+                <!-- PESTAÑA STOCK (SOLO BARTENDERS) -->
+                <div class="tab-pane fade" id="stock" role="tabpanel">
+                    
+                    <!-- Selector de Barra y Nombre -->
+                    <div class="card card-custom p-3 mb-3 border-secondary" style="background-color: #16191c !important;">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-6">
+                                <label for="select-barra" class="form-label text-warning small fw-bold">Seleccionar Barra:</label>
+                                <select id="select-barra" class="form-select bg-dark text-light border-secondary">
+                                    <option value="">-- Seleccioná una barra --</option>
+                                    <option value="Principal">Principal</option>
+                                    <option value="Cantina">Cantina</option>
+                                    <option value="Warhol">Warhol</option>
+                                    <option value="Patio">Patio</option>
+                                    <option value="Altillo">Altillo</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="input-nombre-stock" class="form-label text-warning small fw-bold">Nombre del Responsable:</label>
+                                <input type="text" id="input-nombre-stock" class="form-control bg-dark text-light border-secondary" placeholder="Tu nombre">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Buscador de Stock -->
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-light">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" id="buscadorStock" class="form-control bg-dark border-secondary text-light shadow-none" placeholder="Buscar producto en stock...">
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Stock con Inicial y Final -->
+                    <form id="formPlanillaStock">
+                        <div class="table-responsive rounded-3 border border-secondary mb-3">
+                            <table class="table table-dark-custom align-middle text-center mb-0" style="font-size: 0.9rem;">
+                                <thead>
+                                    <tr>
+                                        <th class="text-start ps-3" style="width: 50%;">Producto / Insumo</th>
+                                        <th style="width: 25%;">Inicial</th>
+                                        <th style="width: 25%;">Final</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-stock-body">
+                                    <!-- JS inyectará los productos de stock acá -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <button type="submit" id="btn-guardar-stock" class="btn btn-warning w-100 fw-bold text-dark shadow-sm py-2">
+                            <i class="bi bi-save2-fill me-2"></i>GUARDAR PLANILLA DE STOCK
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -212,7 +282,7 @@
             </a>
             <a href="#carta-seccion" class="text-muted text-decoration-none small flex-grow-1">
                 <i class="bi bi-journal-richtext d-block fs-4 mb-1"></i> La Carta
-            </a>
+          </a>
             <button id="btn-logout-mobile" class="btn btn-link text-danger text-decoration-none small p-0 border-0 flex-grow-1" style="box-shadow: none !important;">
                 <i class="bi bi-box-arrow-right d-block fs-4 mb-1"></i> Salir
             </button>
