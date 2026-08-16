@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!usuarioActivo || (rolUsuario !== "super_admin" && rolUsuario !== "admin")) {
         mostrarNotificacion("Acceso denegado. Se requiere cuenta de Administrador.", "error");
-        setTimeout(() => { window.location.href = "login.html"; }, 1500);
+        setTimeout(() => { window.location.href = "index.html"; }, 1500);
         return;
     }
 
@@ -59,7 +59,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         btnLogout.addEventListener("click", () => {
             sessionStorage.clear();
             mostrarNotificacion("Sesión cerrada correctamente. ¡Buen descanso!", "exito");
-            setTimeout(() => { window.location.href = "login.html"; }, 1200);
+            setTimeout(() => { window.location.href = "index.html"; }, 1200);
         });
     }
 

@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!usuarioActivo) {
         mostrarNotificacion("Acceso denegado. Por favor, iniciá sesión.", "error");
-        setTimeout(() => { window.location.href = "login.html"; }, 1500);
+        setTimeout(() => { window.location.href = "index.html"; }, 1500);
         return;
     }
 
@@ -41,7 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const ejecutarLogout = () => {
         sessionStorage.clear();
         mostrarNotificacion("Sesión cerrada correctamente. ¡Buen descanso!", "exito");
-        setTimeout(() => { window.location.href = "login.html"; }, 1200);
+        setTimeout(() => { window.location.href = "index.html"; }, 1200);
     };
 
     const btnLogoutPC = document.getElementById("btn-logout");
