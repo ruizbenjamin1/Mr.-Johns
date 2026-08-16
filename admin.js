@@ -37,9 +37,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio"];
     const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbzNq6zFAAEj7TTqdz5A78ZRcPhb8I80DlCm_F0E05T1lZWzuEkJ1aeStZb1K1vWM3X_UQ/exec";
 
-    // === SEMANA ACTUAL (LUNES EN FORMATO YYYY-MM-DD) — usa la función global de supabase_client.js ===
-    const semanaActualStr = obtenerLunesSemanaActual();
-
     // ESTADO DEL DÍA SELECCIONADO PARA LA GESTIÓN
     let diaSeleccionado = "Sábado";
     const selectDia = document.getElementById("select-dia-gestion");
@@ -105,7 +102,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // === CONVOCATORIA (AHORA ANCLADA A LA SEMANA ACTUAL) ===
     window.alternarConvocatoria = async (username, estaConvocado) => {
         try {
             if (estaConvocado) {
@@ -113,8 +109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     .from('convocados')
                     .delete()
                     .eq('user_name', username)
-                    .eq('dia', diaSeleccionado)
-                    .eq('semana', semanaActualStr);
+                    .eq('dia', diaSeleccionado);
 
                 if (error) throw error;
                 mostrarNotificacion("Mozo removido de la convocatoria.", "exito");
@@ -122,7 +117,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const { error } = await _supabase
                     .from('convocados')
                     .insert([
-                        { user_name: username, sector: "Principal", propina_individual: 0, dia: diaSeleccionado, semana: semanaActualStr }
+                        { user_name: username, sector: "Principal", propina_individual: 0, dia: diaSeleccionado }
                     ]);
 
                 if (error) throw error;
@@ -142,8 +137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .from('convocados')
                 .update({ sector: sectorVal })
                 .eq('user_name', username)
-                .eq('dia', diaSeleccionado)
-                .eq('semana', semanaActualStr);
+                .eq('dia', diaSeleccionado);
 
             if (error) throw error;
             mostrarNotificacion("Sector guardado correctamente.", "exito");
@@ -159,8 +153,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 .from('convocados')
                 .update({ propina_individual: Number(montoVal) || 0 })
                 .eq('user_name', username)
-                .eq('dia', diaSeleccionado)
-                .eq('semana', semanaActualStr);
+                .eq('dia', diaSeleccionado);
 
             if (error) throw error;
         } catch (err) {
@@ -169,7 +162,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // === EXPORTACIÓN DE MOZOS A GOOGLE SHEETS (FILTRADO POR SEMANA ACTUAL) ===
+    // === EXPORTACIÓN DE MOZOS A GOOGLE SHEETS (CON FECHA YYYY-MM-DD DIRECTA) ===
     window.exportarMozosA_GoogleSheets = async () => {
         try {
             const inputsPropinas = document.querySelectorAll('#equipo-convocado-final input[type="number"]');
@@ -181,10 +174,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
+            const hoy = new Date();
+            const fechaDiariaExacta = hoy.toISOString().split('T')[0];
+
             const { data: convocados, error } = await _supabase
                 .from('convocados')
-                .select(`user_name, sector, propina_individual, semana, dia, usuarios (nombre_real, rol)`)
-                .eq('semana', semanaActualStr);
+                .select(`user_name, sector, propina_individual, semana, dia, usuarios (nombre_real, rol)`);
 
             if (error) throw error;
 
@@ -203,7 +198,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             const filasProcesadas = mozosConvocados.map(item => ({
-                semana: semanaActualStr,
+                semana: fechaDiariaExacta,
                 usuario: item.usuarios.nombre_real || item.user_name,
                 rol: `Mozo (${diaSeleccionado})`,
                 sector: item.sector || 'Principal',
@@ -227,13 +222,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // === CARGA ASÍNCRONA DE DATOS (CONVOCADOS FILTRADOS POR SEMANA ACTUAL) ===
+    // === CARGA ASÍNCRONA DE DATOS ===
     async function cargarPanelAdmin() {
         try {
             const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
                 _supabase.from('usuarios').select('*'),
                 _supabase.from('agendas').select('*'),
-                _supabase.from('convocados').select('*').eq('semana', semanaActualStr)
+                _supabase.from('convocados').select('*')
             ]);
 
             if (resUsuarios.error) throw resUsuarios.error;
@@ -287,7 +282,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const nombreMostrar = usuario.nombre_real || usuario.user_name;
                     const agendaUsuario = agendasDB.find(a => a.user_name === usuario.user_name);
                     
-                    // Buscar si está convocado EL DÍA SELECCIONADO dentro de la SEMANA ACTUAL
+                    // Buscar si está convocado EL DÍA SELECCIONADO
                     const registroConvocado = convocadosDB.find(c => c.user_name === usuario.user_name && (c.dia === diaSeleccionado || (!c.dia && diaSeleccionado === 'Sábado')));
                     const estaConvocado = !!registroConvocado;
 

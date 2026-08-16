@@ -95,7 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     } else if (usuario.rol === "administrador_barra" || usuario.rol === "barman" || usuario.rol === "admin_barra") {
                         window.location.href = "jefe_barra.html";
                     } else {
-                        window.location.href = "dashboard.html";
+                        window.location.href = "Dashboard.html";
                     }
                 }, 1000);
 
