@@ -1,0 +1,285 @@
+/* ==========================================
+   ESTILOS PREMIUM - MR. JHONS (2026)
+   ========================================== */
+
+/* Importamos una tipografía más moderna y limpia */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
+
+:root {
+    --bg-principal: #0b0b0e;        /* Un negro profundo con un toque azulado/espacial */
+    --bg-card: #14141c;             /* Gris oscuro azulado para las tarjetas */
+    --bg-input: #1b1b26;            /* Color para los campos de texto */
+    --border-color: #262636;        /* Bordes ultra finos y sutiles */
+    
+    /* Paleta de Colores de Acentos (Brillantes pero elegantes) */
+    --oro-premium: #f39c12;         /* Un dorado ámbar corporativo */
+    --oro-glow: rgba(243, 156, 18, 0.15);
+    --cyan-barra: #00e5ff;         /* Cyan eléctrico para el jefe de barra */
+    --cyan-glow: rgba(0, 229, 255, 0.15);
+    
+    /* Estados */
+    --success-pro: #00e676;
+    --danger-pro: #ff1744;
+    --warning-pro: #ffea00;
+}
+
+/* Aplicamos la nueva tipografía y suavizado general */
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--bg-principal);
+    color: #f1f2f6;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
+}
+
+/* --- TARJETAS PREMIUM (Efecto Glassmorphism sutil) --- */
+.card-admin, .card-barra, .card-custom {
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 16px !important; /* Bordes más redondeados y modernos */
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* --- TEXTOS CON DEGRADADO (Le da el toque pro) --- */
+.text-warning {
+    color: var(--oro-premium) !important;
+    font-weight: 700;
+}
+.text-info {
+    color: var(--cyan-barra) !important;
+    font-weight: 700;
+}
+
+/* --- NAVBARS ULTRA LIMPIAS --- */
+.navbar {
+    background-color: rgba(20, 20, 28, 0.8) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color) !important;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+/* --- BOTONES CON GLOW (Efecto neón sutil) --- */
+.btn-custom {
+    background-color: var(--oro-premium) !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 10px !important;
+    letter-spacing: 0.03em;
+    transition: all 0.3s ease-in-out !important;
+}
+.btn-custom:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px var(--oro-glow) !important;
+    background-color: #f5b041 !important;
+}
+
+.btn-barra {
+    background-color: var(--cyan-barra) !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 10px !important;
+    transition: all 0.3s ease-in-out !important;
+}
+.btn-barra:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 20px var(--cyan-glow) !important;
+    background-color: #33ecff !important;
+}
+
+/* --- INPUTS Y FORMULARIOS MODERNOS --- */
+.form-control, .form-select {
+    background-color: var(--bg-input) !important;
+    border: 1px solid var(--border-color) !important;
+    color: #f1f2f6 !important;
+    border-radius: 10px !important;
+    padding: 10px 14px;
+    transition: all 0.2s ease-in-out;
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--oro-premium) !important;
+    box-shadow: 0 0 10px var(--oro-glow) !important;
+}
+
+/* Específico para el panel de barra cuando hace foco */
+.card-barra .form-control:focus, .card-barra .form-select:focus {
+    border-color: var(--cyan-barra) !important;
+    box-shadow: 0 0 10px var(--cyan-glow) !important;
+}
+
+/* --- TABLAS ESTILO DASHBOARD MODERNO --- */
+.table-dark-custom, .table-agenda {
+    border-color: var(--border-color) !important;
+}
+.table-dark-custom th, .table-agenda th {
+    background-color: #171724 !important;
+    border-bottom: 2px solid var(--border-color) !important;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 14px !important;
+}
+.table-dark-custom td, .table-agenda td {
+    background-color: var(--bg-card) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    padding: 14px !important;
+}
+
+/* Resaltado especial del Sábado */
+.table-agenda .sabado-highlight th, 
+.table-agenda .sabado-highlight td {
+    background-color: #1f1b13 !important; 
+    border-left: none !important;
+    border-right: none !important;
+    color: var(--oro-premium) !important;
+}
+
+/* --- BADGES (Etiquetas de estado) --- */
+.badge.bg-success {
+    background-color: rgba(0, 230, 118, 0.15) !important;
+    color: var(--success-pro) !important;
+    border: 1px solid rgba(0, 230, 118, 0.3) !important;
+}
+.badge.bg-secondary {
+    background-color: var(--bg-input) !important;
+    color: #a0a0b0 !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+/* Elementos de la lista de confirmados */
+.list-group-item-custom {
+    background-color: #181824 !important;
+    border: 1px solid var(--border-color) !important;
+    margin-bottom: 8px;
+    border-radius: 12px !important;
+    transition: transform 0.2s ease;
+}
+.list-group-item-custom:hover {
+    transform: translateX(4px);
+}
+/* Animación de entrada suave para las tarjetas al cargar la app */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card-admin, .card-barra, .card-custom {
+    animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) ease-out;
+}
+
+/* Efecto elástico y de escala cuando presionan CUALQUIER botón o switch */
+.btn, .form-check-input {
+    transition: transform 0.1s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.2s ease !important;
+}
+
+.btn:active, .form-check-input:active {
+    transform: scale(0.96) !important; /* El botón se "hunde" levemente al tocarlo */
+}
+
+/* Esconder las barras de scroll en celulares para que se vea más limpio */
+::-webkit-scrollbar {
+    display: none;
+}
+/* Centrado del contenedor de login con animación de entrada */
+body.vh-100 {
+    background: radial-gradient(circle at center, #14141f 0%, #0b0b0e 100%) !important;
+}
+/* ===================================================
+   EDICIÓN ALTA VISIBILIDAD PARA PLANILLAS Y CONTROLES
+   (No afecta la pantalla de Login)
+   =================================================== */
+
+/* 1. TEXTOS GENERALES, ACORDES Y DESCRIPCIONES ACCESIBLES */
+.card-admin, .card-barra, .card-custom {
+    color: #f8fafc !important; /* Blanco tiza ultra nítido para textos base */
+}
+
+/* Pasamos los textos aclaratorios grises que no se leían a un gris plata bien visible */
+.card-admin .text-muted, 
+.card-barra .text-muted, 
+.card-custom .text-muted,
+.card-admin p.small,
+.card-barra p.small,
+.card-custom p.small,
+label.form-label {
+    color: #cbd5e1 !important; 
+    opacity: 1 !important;
+}
+
+/* 2. CONTRASTE DE ENCABEZADOS Y CELDAS EN TABLAS (Planillas, CRUDs y Agendas) */
+.table-agenda th, 
+.table-dark-custom th, 
+table.table thead th {
+    background-color: #1e1e2f !important; /* Fondo de títulos un toque más claro */
+    border-bottom: 2px solid #3f3f56 !important;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    padding: 14px !important;
+    color: #ffffff !important; /* Blanco puro para "PERSONAL", "PUESTO", "ESTADO", "DÍA" */
+    font-weight: 700 !important;
+}
+
+.table-agenda td, 
+.table-dark-custom td, 
+table.table tbody td {
+    background-color: #14141f !important; /* Forzamos el fondo oscuro de celda */
+    border-bottom: 1px solid #2a2a3a !important;
+    padding: 14px !important;
+    color: #f8fafc !important; /* Texto interno de celdas en alta claridad */
+}
+
+/* Primera columna de las tablas (Nombres de empleados o Días de la semana) */
+.table-agenda tbody td:first-child,
+.table-dark-custom tbody td:first-child,
+table.table tbody td:first-child {
+    color: #ffffff !important; /* Blanco sólido para resaltar los nombres y días */
+    font-weight: 600 !important;
+    text-align: left;
+    padding-left: 20px !important;
+}
+
+/* 3. RESALTADO PREMIUM DEL SÁBADO (Fila destacada en el Dashboard) */
+.table-agenda .sabado-highlight th, 
+.table-agenda .sabado-highlight td {
+    background-color: #2c2414 !important; /* Fondo ámbar oscuro elegante */
+    color: #ffffff !important;
+}
+.table-agenda .sabado-highlight td:first-child {
+    color: #fbc531 !important; /* Dorado brillante exclusivo para la palabra 'Sábado' */
+}
+
+/* 4. MEJORA EN INPUTS DE TEXTO, DESPLEGABLES Y PLACEHOLDERS */
+.card-admin .form-control, 
+.card-barra .form-control, 
+.card-custom .form-control,
+.card-admin .form-select,
+.card-barra .form-select {
+    color: #ffffff !important; /* Lo que escribís o seleccionás se ve en blanco */
+    font-weight: 500;
+}
+
+/* Gris claro perfectamente visible para los textos de ejemplo dentro de los inputs */
+.card-admin .form-control::placeholder,
+.card-barra .form-control::placeholder,
+.card-custom .form-control::placeholder {
+    color: #94a3b8 !important; 
+    opacity: 1 !important;
+}
+
+/* 5. DESCRIPCIÓN DE LA CARTA (Ingredientes de tragos y hamburguesas) */
+#carta-seccion .card-custom p.text-muted {
+    color: #94a3b8 !important; /* Mayor definición para la lectura rápida en el salón */
+}
