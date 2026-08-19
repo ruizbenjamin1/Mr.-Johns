@@ -18,11 +18,11 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
             }
         }).showToast();
     } else {
-        alert(mensaje); // Fallback por seguridad
+        alert(mensaje);
     }
 }
 
-// === SEMANA ACTUAL (LUNES EN FORMATO YYYY-MM-DD) — usa la función global de supabase_client.js ===
+// === SEMANA ACTUAL (LUNES EN FORMATO YYYY-MM-DD) ===
 const semanaActualStr = obtenerLunesSemanaActual();
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -84,7 +84,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
-    // === 4. CÁLCULO DINÁMICO Y MOSTRAR RANGO DE FECHA DE LA SEMANA ===
+    // === 4. CÁLCULO DINÁMICO DE FECHA Y DÍA ACTUAL ===
+    const diasSemanaNombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+    const hoyIndex = new Date().getDay(); 
+    const diaActualNombre = diasSemanaNombres[hoyIndex]; // Ejemplo: "Viernes" o "Sábado"
+
     const obtenerRangoSemanaActual = () => {
         const hoy = new Date();
         const diaSemana = hoy.getDay();
@@ -110,12 +114,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         elementoFecha.innerText = obtenerRangoSemanaActual();
     }
 
-    // === 5. CARGA ASÍNCRONA DE DATOS DESDE SUPABASE (CONVOCADOS FILTRADOS POR SEMANA ACTUAL) ===
+    // === 5. CARGA ASÍNCRONA DE DATOS DESDE SUPABASE ===
     try {
         const [resUsuarios, resConvocados, resAgendaPropia] = await Promise.all([
             _supabase.from('usuarios').select('*'),
-            _supabase.from('convocados').select('*').eq('semana', semanaActualStr),
-            _supabase.from('agendas').select('*').eq('user_name', usuarioActivo).maybeSingle()
+            _supabase.from('convocados').select('*'),
+            _supabase.from('agendas').select('*').eq('user_name', usuarioActivo.toLowerCase().trim()).maybeSingle()
         ]);
 
         if (resUsuarios.error) throw resUsuarios.error;
@@ -126,18 +130,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         const agendaPropia = resAgendaPropia.data;
 
         // Mostrar Badge del Usuario Activo
-        const datosEsteUsuario = usuariosDB.find(u => u.user_name === usuarioActivo);
+        const usuarioLimpio = usuarioActivo.toLowerCase().trim();
+        const datosEsteUsuario = usuariosDB.find(u => (u.user_name || "").toLowerCase().trim() === usuarioLimpio);
         const nombreCompleto = datosEsteUsuario && datosEsteUsuario.nombre_real 
             ? datosEsteUsuario.nombre_real 
             : usuarioActivo;
 
         const badgeRol = document.getElementById("user-role-badge");
-        if (badgeRol && rolUsuario) {
-            const puestoFormateado = rolUsuario.charAt(0).toUpperCase() + rolUsuario.slice(1);
+        if (badgeRol && datosEsteUsuario) {
+            const puestoFormateado = (datosEsteUsuario.rol || "").charAt(0).toUpperCase() + (datosEsteUsuario.rol || "").slice(1);
             badgeRol.innerText = `${nombreCompleto}: ${puestoFormateado}`;
         }
 
-        // Cargar estado previo de la Agenda del Usuario
+        // Cargar estado previo de la Agenda Semanal del Usuario
         if (agendaPropia) {
             Object.keys(diasIds).forEach(dia => {
                 const checkbox = document.getElementById(diasIds[dia]);
@@ -152,64 +157,68 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         actualizarBadgesVisuales();
 
-        // === 6. RENDER DE PLANILLA DE CONVOCADOS ===
+        // === 6. RENDER DE PLANILLA DE CONVOCADOS (FILTRADO ESTRICTAMENTE POR EL DÍA DE HOY) ===
         const seccionPlanilla = document.getElementById("seccion-convocados-planilla");
         const tablaConvocadosBody = document.getElementById("tabla-convocados-body");
 
         if (seccionPlanilla && tablaConvocadosBody) {
             tablaConvocadosBody.innerHTML = "";
-            let hayConvocadosDeMiRol = false;
+            
+            // Buscamos las convocatorias del usuario que coincidan tanto con su usuario como con el DÍA DE HOY
+            const normalizadorTexto = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            const diaHoyNorm = normalizadorTexto(diaActualNombre);
 
-            usuariosDB.forEach(usuario => {
-                const registrosConvocados = convocadosDB.filter(c => c.user_name === usuario.user_name);
-
-                if (registrosConvocados.length > 0 && usuario.rol === rolUsuario) {
-                    hayConvocadosDeMiRol = true;
-                    
-                    registrosConvocados.forEach(registroConvocado => {
-                        const nombre = usuario.nombre_real || usuario.user_name;
-                        const esCeldaPropia = usuario.user_name === usuarioActivo;
-                        const sectorAsignado = registroConvocado.sector || "Principal";
-                        const diaAsignado = registroConvocado.dia || "Sábado";
-
-                        const estiloBadge = usuario.rol === "mozo" 
-                            ? "border-warning text-warning" 
-                            : "border-info text-info";
-
-                        const filaHTML = `
-                            <tr class="${esCeldaPropia ? 'table-active border-left border-success' : ''}">
-                                <td class="fw-bold ${esCeldaPropia ? 'text-success' : 'text-light'} text-start ps-3">
-                                    ${nombre} ${esCeldaPropia ? '<span class="badge bg-success ms-2" style="font-size:0.65rem;">Vos</span>' : ''}
-                                </td>
-                                <td>
-                                    <span class="badge bg-secondary text-light px-2 py-1">${diaAsignado}</span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-dark border ${estiloBadge} text-uppercase px-2 py-1" style="font-size: 0.75rem;">
-                                        ${sectorAsignado}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="text-success small fw-semibold"><i class="bi bi-check2-all me-1"></i> Convocado</span>
-                                </td>
-                            </tr>
-                        `;
-                        tablaConvocadosBody.innerHTML += filaHTML;
-                    });
-                }
+            const misConvocatoriasHoy = convocadosDB.filter(c => {
+                const esMiUsuario = (c.user_name || "").toLowerCase().trim() === usuarioLimpio;
+                const diaConvocadoNorm = normalizadorTexto(c.dia || 'Sábado');
+                return esMiUsuario && (diaConvocadoNorm === diaHoyNorm);
             });
 
-            if (hayConvocadosDeMiRol) {
+            if (misConvocatoriasHoy.length > 0 && datosEsteUsuario) {
                 seccionPlanilla.classList.remove("d-none");
+                
                 const tablaHeader = seccionPlanilla.querySelector("table thead tr");
+                const rolReal = (datosEsteUsuario.rol || "").toLowerCase();
+                const esBartender = rolReal.includes("bar");
+
                 if (tablaHeader) {
                     tablaHeader.innerHTML = `
                         <th class="text-start ps-3">Personal</th>
                         <th>Día</th>
-                        <th>${rolUsuario === 'mozo' ? 'Sector' : 'Barra'}</th>
+                        <th>${esBartender ? 'Barra' : 'Sector'}</th>
                         <th>Estado</th>
                     `;
                 }
+
+                misConvocatoriasHoy.forEach(registroConvocado => {
+                    const nombre = datosEsteUsuario.nombre_real || usuarioActivo;
+                    const sectorAsignado = registroConvocado.sector || "Principal";
+                    const diaAsignado = registroConvocado.dia || diaActualNombre;
+
+                    const estiloBadge = esBartender 
+                        ? "border-info text-info" 
+                        : "border-warning text-warning";
+
+                    const filaHTML = `
+                        <tr class="table-active border-left border-success">
+                            <td class="fw-bold text-success text-start ps-3">
+                                ${nombre} <span class="badge bg-success ms-2" style="font-size:0.65rem;">Vos (Hoy)</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary text-light px-2 py-1">${diaAsignado}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-dark border ${estiloBadge} text-uppercase px-2 py-1" style="font-size: 0.75rem;">
+                                    ${sectorAsignado}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="text-success small fw-semibold"><i class="bi bi-check2-all me-1"></i> Convocado Hoy</span>
+                            </td>
+                        </tr>
+                    `;
+                    tablaConvocadosBody.innerHTML += filaHTML;
+                });
             } else {
                 seccionPlanilla.classList.add("d-none");
             }
@@ -244,11 +253,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const { data: agendaExistente } = await _supabase
                     .from('agendas')
                     .select('id')
-                    .eq('user_name', usuarioActivo)
+                    .eq('user_name', usuarioActivo.toLowerCase().trim())
                     .maybeSingle();
 
                 const objetoAgenda = {
-                    user_name: usuarioActivo,
+                    user_name: usuarioActivo.toLowerCase().trim(),
                     lunes: estadoDias.lunes,
                     martes: estadoDias.martes,
                     miercoles: estadoDias.miercoles,
@@ -263,7 +272,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 let errorOp = null;
 
                 if (agendaExistente) {
-                    const { error } = await _supabase.from('agendas').update(objetoAgenda).eq('user_name', usuarioActivo);
+                    const { error } = await _supabase.from('agendas').update(objetoAgenda).eq('user_name', usuarioActivo.toLowerCase().trim());
                     errorOp = error;
                 } else {
                     const { error } = await _supabase.from('agendas').insert([objetoAgenda]);
@@ -294,7 +303,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // === 8. GESTIÓN DE LA CARTA Y GESTIÓN DE STOCK ===
-    
     const listaComidasGlobal = [
         { nombre: "Bastoncitos de quesos crocantes", descripcion: "Rebozados de queso, acompañados de salsa de tomates frescos y cebolla morada.", etiqueta: null },
         { nombre: "Tequeños de queso", descripcion: "Rollitos de queso empanados, acompañados con salsa de la casa.", etiqueta: null },
@@ -303,36 +311,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         { nombre: "Baba Ganoush", descripcion: "Pate de berenjenas asadas acompañado con pan pita, grisines, verduras frescas, esferas de queso y falafel.", etiqueta: null },
         { nombre: "Cazuela de quesos fundidos", descripcion: "Para los amantes del queso, los mejores queso argentinos fundidos acompañados de cubos de pan tostado, tomates cherries, albahaca, grisines y toque fresco de guacamole.", etiqueta: null },
         { nombre: "Rabas soufflé", descripcion: "Anillos de calamar fritos, acompañados de aderezo cítrico y mayo tabasco.", etiqueta: null },
-        
         { nombre: "Picada Fría para 2", descripcion: "Queso tybo en fetas, cantimpalo, bondiola, jamón cocido, olivas verdes y negras, pinchos de queso tomates y rúcula, trufas de queso azul y tostadas saborizadas.", etiqueta: null },
         { nombre: "Picada Caliente para 2", descripcion: "Tequeños, bastones de mozzarella, croquetas de queso, trocitos de pollo KFC, papas fritas y salsas.", etiqueta: null },
         { nombre: "Tabla Finger Food para 4", descripcion: "Nuggets de pollo y carne con salsa cheddar y BBQ ahumada, pulpetines de roast beef con salsa tabasco, pinchos de queso, rúcula y tomates secos, trufas de queso azul y nueces, jamón cocido, frasco de quesos y pimientos ahumados.", etiqueta: null },
-
         { nombre: "Parrillero Argento Sandwich", descripcion: "Lomo, vegetales, tomates, rúcula y crema de pimientos.", etiqueta: null },
         { nombre: "Pollo KFC", descripcion: "Pechuguitas de pollo crocante estilo kentuky, papas fondue y salsa de mostaza y miel.", etiqueta: null },
         { nombre: "Quesadillas de pollo", descripcion: "Tortillas de trigo rellenas de pollo con quesos fundidos, cebollas caramelizadas, sour cream y pasta de frijoles.", etiqueta: null },
         { nombre: "Papas New York/Argenta", descripcion: "Papas con salsa cheddar y panceta crispy, tiritas de picana, pimientos asados y salsa de verdeo.", etiqueta: null },
-
         { nombre: "Espiral de lomo", descripcion: "Con tomates rúcula, queso parmigiano, olivas negras, papas rusticas con hierbas.", etiqueta: "SIN TACC" },
         { nombre: "Tiritas de pollo grilladas con hierbas", descripcion: "Sobre mézclum de hojas verdes y tomates quemados a la chapa y aderezo cítrico.", etiqueta: "SIN TACC" },
         { nombre: "Tournedó", descripcion: "Medallón de filet con manteca pomada de hiervas y papa plomo.", etiqueta: "SIN TACC" },
-        { nombre: "Pollo al estilo oriental salteado al wok", descripcion: "Con vegetales de estación, salsa de soja, mix de semillas, arroz frito con maní.", etiqueta: "SIN TACC" },
+        { nombre: "Pollo al estilo oriental salteado al wok", descripcion: "With vegetales de estación, salsa de soja, mix de semillas, arroz frito con maní.", etiqueta: "SIN TACC" },
         { nombre: "Burrito 2.0 fusión", descripcion: "Roll de carne, panceta y vegetales en tortilla mexicana gratinada con queso parmigiano servida sobre salsa cheddar y pico de gallo.", etiqueta: null },
-
         { nombre: "Pizza Mr Johns", descripcion: "Lengüeta con mozzarella, aceitunas negras, bondiola y morrones crema.", etiqueta: "SIN TACC" },
         { nombre: "Pizza 6 Quesos", descripcion: "Lengüeta con mozzarella, provolone, queso azul dambo, cheddar y chips crocantes de parmesano.", etiqueta: "SIN TACC" },
         { nombre: "Pizza Jackie Kennedy", descripcion: "Lengüeta con mozzarella, panceta, champignones y ciboulette.", etiqueta: "SIN TACC" },
         { nombre: "Pizza Super Caprese", descripcion: "Lengüeta con mozzarella, tomates secos, tomates cherries, albahaca fresca y con una sabrosa decoración de pesto genovés y de tomates secos.", etiqueta: "SIN TACC" },
         { nombre: "Pizza New York", descripcion: "Lengüeta con jamón ahumado, panceta, cantimpalo, carne y pimientos asados.", etiqueta: "SIN TACC" },
-
         { nombre: "Hamburguesa Mr Johns", descripcion: "3 medallones de carne de 100 grs, acompañados con salsa y aderezo mac secreto, panceta crocante y queso cheddar.", etiqueta: "SIN TACC" },
         { nombre: "Hamburguesa Cheddar Lake", descripcion: "2 medallones de carne de 100 grs, base de lago cheddar y polvo de panceta.", etiqueta: "SIN TACC" },
         { nombre: "Hamburguesa Oh la la Paris", descripcion: "2 medallones de carne de 100 grs, con queso azul derretido sobre champignones a la provenzal y cebollas caramelizadas.", etiqueta: "SIN TACC" },
         { nombre: "Hamburguesa Crispy Burger", descripcion: "2 medallones de carne de 100 grs, doble cheddar, salsa ahumada, coronados por esferas de queso crocante y cebollas crispy.", etiqueta: "SIN TACC" },
-
         { nombre: "Ensalada Cesar Curry", descripcion: "Ensalada de pollo grillado al curry, hojas verdes, croutons de pan de campo, queso parmesano, olivas negras y alineo cesars.", etiqueta: "SIN TACC" },
         { nombre: "Ensalada Tibia Caprese de trufas de queso", descripcion: "Ensalada de tomates cherries, trufas de queso y albahaca fresca sobre base de focaccia dorada con aceite de oliva acompañada por vinagreta de aceto balsámico y pomelo rosado.", etiqueta: "SIN TACC" },
-
         { nombre: "Copa Frutos Rojos", descripcion: "Mix de frutos rojos con merenguitos crocantes, crocante de almendras y helado de americana.", etiqueta: null },
         { nombre: "Brownie con Helado", descripcion: "Brownie con helado de americana, coronada con frutos rojos.", etiqueta: null }
     ];
@@ -358,7 +359,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         { nombre: "Pisco Sour", descripcion: "Ingredientes: 3 Oz Pisco, jugo de limón, almíbar. Método: Cocteleado y doble colado. Cristalería: Copa Martini." }
     ];
 
-    // Listado completo de stock agrupado por categorías
     const listaStockGlobal = [
         { categoria: "CHAMPAGNE", nombre: "Champagne Baron B" },
         { categoria: "CHAMPAGNE", nombre: "Champagne Baron B rose" },
@@ -370,12 +370,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         { categoria: "CHAMPAGNE", nombre: "Chandon Aperitif" },
         { categoria: "CHAMPAGNE", nombre: "Champagne de corte (cúter/renas/callia, etc)" },
         { categoria: "CHAMPAGNE", nombre: "Espumante Callia" },
-
         { categoria: "VODKA ABSOLUT", nombre: "Absolut vodka swedish 700ml" },
         { categoria: "VODKA ABSOLUT", nombre: "Absolut clásico 500ml" },
         { categoria: "VODKA ABSOLUT", nombre: "Absolut saborizado" },
         { categoria: "VODKA ABSOLUT", nombre: "Absolut Tabasco" },
-
         { categoria: "VINOS", nombre: "Vino Callia" },
         { categoria: "VINOS", nombre: "Vino callia rose" },
         { categoria: "VINOS", nombre: "Vino Santa Julia" },
@@ -387,23 +385,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         { categoria: "VINOS", nombre: "Vino La Linda" },
         { categoria: "VINOS", nombre: "Vino ö-61 Malbec" },
         { categoria: "VINOS", nombre: "Vino Rutini Malbec" },
-
         { categoria: "COCA COLA", nombre: "Coca cola vidrio 350ml" },
         { categoria: "COCA COLA", nombre: "Coca cola vidrio zero 350ml" },
         { categoria: "COCA COLA", nombre: "Gaseosa coca cola pet 375ml" },
         { categoria: "COCA COLA", nombre: "Gaseosa coca cola Zero pet 375ml" },
         { categoria: "COCA COLA", nombre: "Gaseosa coca cola 1.5L" },
         { categoria: "COCA COLA", nombre: "Gaseosa coca cola zero 1.5L" },
-
         { categoria: "SKYY", nombre: "Skyy (todas las presentaciones)" },
-
         { categoria: "ENERGIZANTE", nombre: "Energizante Red Bull 250 ml" },
         { categoria: "ENERGIZANTE", nombre: "Energizante Speed 250ml" },
         { categoria: "ENERGIZANTE", nombre: "Energizante Sugar Free 250ml" },
         { categoria: "ENERGIZANTE", nombre: "Energizante Red Bull Red 250ml" },
         { categoria: "ENERGIZANTE", nombre: "Energizante Red Bull green 250ml" },
         { categoria: "ENERGIZANTE", nombre: "Energizante Red Bull summer" },
-
         { categoria: "GIN", nombre: "Gin Bombay" },
         { categoria: "GIN", nombre: "Gin Bull Dog" },
         { categoria: "GIN", nombre: "Gin Spirito Blu" },
@@ -411,17 +405,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         { categoria: "GIN", nombre: "Gin Beefeater 700ml" },
         { categoria: "GIN", nombre: "Gin Beefeater Pink 700ml" },
         { categoria: "GIN", nombre: "Gin Beefeater Blood Orange 700ml" },
-
         { categoria: "FERNET", nombre: "Fernet Branca 750ml" },
         { categoria: "FERNET", nombre: "Fernet Branca 1lt" },
         { categoria: "FERNET", nombre: "Fernet Branca 450ml" },
-
         { categoria: "CERVEZA", nombre: "Cerveza Heineken 330ml" },
         { categoria: "CERVEZA", nombre: "Cerveza Miller 330cc" },
         { categoria: "CERVEZA", nombre: "Cerveza Imperial 300ml" },
         { categoria: "CERVEZA", nombre: "Cerveza Sin alcohol" },
         { categoria: "CERVEZA", nombre: "Cerveza Blue Moon" },
-
         { categoria: "AGUAS", nombre: "Agua mineral Benedictino s/gas" },
         { categoria: "AGUAS", nombre: "Agua mineral Palau s/gas" },
         { categoria: "AGUAS", nombre: "Agua mineral Villa del Sur s/gas" },
@@ -431,7 +422,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         { categoria: "AGUAS", nombre: "Agua mineral Benedictino c/gas" }
     ];
 
-    // Control de rol para bartenders / barra
     if (rolUsuario === "bartender" || rolUsuario === "barman" || rolUsuario === "administrador_barra" || rolUsuario === "admin_barra") {
         const tabComidaElement = document.getElementById("comida-tab");
         const tabBebidaElement = document.getElementById("bebida-tab");
@@ -441,12 +431,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             tabComidaElement.parentElement.style.display = "none";
         }
 
-        // Mostrar solapa de stock
         if (tabStockLi) {
             tabStockLi.classList.remove("d-none");
         }
 
-        // Repartir espacio 50/50 para bebidas y stock
         const tabBebidaLi = document.getElementById("tab-item-bebida");
         if (tabBebidaLi) tabBebidaLi.style.width = "50%";
         if (tabStockLi) tabStockLi.style.width = "50%";
@@ -456,7 +444,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             tabBebida.show();
         }
 
-        // Renderizar tabla de stock inicial y final
         renderizarStock(listaStockGlobal);
     } else {
         renderizarComidas(listaComidasGlobal);
@@ -469,22 +456,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         const contenedor = document.getElementById("contenedorComidas");
         if (!contenedor) return;
         contenedor.innerHTML = "";
-
-        if (comidas.length === 0) {
-            contenedor.innerHTML = `<p class="text-muted small text-center py-2">No se encontraron platos.</p>`;
-            return;
-        }
-
         comidas.forEach(plato => {
             contenedor.innerHTML += `
                 <div class="card card-custom p-3 mb-2 rounded-3" style="background-color: #16191c !important;">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <h6 class="fw-bold mb-1 text-light">${plato.nombre}</h6>
-                    </div>
+                    <h6 class="fw-bold mb-1 text-light">${plato.nombre}</h6>
                     <p class="text-muted small mb-2">${plato.descripcion}</p>
                     ${plato.etiqueta ? `<div><span class="badge bg-danger bg-opacity-25 text-danger border border-danger badge-allergen">${plato.etiqueta}</span></div>` : ''}
-                </div>
-            `;
+                </div>`;
         });
     }
 
@@ -492,21 +470,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         const contenedor = document.getElementById("contenedorBebidas");
         if (!contenedor) return;
         contenedor.innerHTML = "";
-
-        if (bebidas.length === 0) {
-            contenedor.innerHTML = `<p class="text-muted small text-center py-2">No se encontraron bebidas.</p>`;
-            return;
-        }
-
         bebidas.forEach(bebida => {
             contenedor.innerHTML += `
                 <div class="card card-custom p-3 mb-2 rounded-3" style="background-color: #16191c !important;">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <h6 class="fw-bold mb-1 text-light">${bebida.nombre}</h6>
-                    </div>
+                    <h6 class="fw-bold mb-1 text-light">${bebida.nombre}</h6>
                     <p class="text-muted small mb-2">${bebida.descripcion}</p>
-                </div>
-            `;
+                </div>`;
         });
     }
 
@@ -514,123 +483,74 @@ document.addEventListener("DOMContentLoaded", async () => {
         const contenedor = document.getElementById("tabla-stock-body");
         if (!contenedor) return;
         contenedor.innerHTML = "";
-
-        if (items.length === 0) {
-            contenedor.innerHTML = `<tr><td colspan="3" class="text-muted text-center py-2">No se encontraron productos.</td></tr>`;
-            return;
-        }
-
         let categoriaActual = "";
-        items.forEach((item, index) => {
+        items.forEach(item => {
             if (item.categoria !== categoriaActual) {
                 categoriaActual = item.categoria;
                 contenedor.innerHTML += `
                     <tr class="table-secondary text-dark fw-bold">
-                        <td colspan="3" class="text-start ps-3 text-uppercase" style="background-color: #2a2f35; color: #ffc107 !important;">
-                            &mdash; ${categoriaActual} &mdash;
-                        </td>
-                    </tr>
-                `;
+                        <td colspan="3" class="text-start ps-3 text-uppercase" style="background-color: #2a2f35; color: #ffc107 !important;">&mdash; ${categoriaActual} &mdash;</td>
+                    </tr>`;
             }
-
             contenedor.innerHTML += `
                 <tr>
                     <td class="text-start ps-3 text-light">${item.nombre}</td>
-                    <td>
-                        <input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-inicial" min="0" value="0">
-                    </td>
-                    <td>
-                        <input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-final" min="0" value="0">
-                    </td>
-                </tr>
-            `;
+                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-inicial" min="0" value="0"></td>
+                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-final" min="0" value="0"></td>
+                </tr>`;
         });
     }
 
-    // Buscador de Stock
     const buscadorStock = document.getElementById("buscadorStock");
     if (buscadorStock) {
         buscadorStock.addEventListener("input", (e) => {
             const texto = e.target.value.toLowerCase().trim();
-            const filtrados = listaStockGlobal.filter(i => 
-                i.nombre.toLowerCase().includes(texto) || i.categoria.toLowerCase().includes(texto)
-            );
+            const filtrados = listaStockGlobal.filter(i => i.nombre.toLowerCase().includes(texto) || i.categoria.toLowerCase().includes(texto));
             renderizarStock(filtrados);
         });
     }
 
-    // ENVÍO DIRECTO DE STOCK A GOOGLE SHEETS
     const formPlanillaStock = document.getElementById("formPlanillaStock");
     if (formPlanillaStock) {
         formPlanillaStock.addEventListener("submit", async (e) => {
             e.preventDefault();
-
             const barra = document.getElementById("select-barra").value;
             const responsable = document.getElementById("input-nombre-stock").value.trim();
 
-            if (!barra) {
-                mostrarNotificacion("Por favor, seleccioná una barra.", "error");
+            if (!barra || !responsable) {
+                mostrarNotificacion("Por favor, completá la barra y el responsable.", "error");
                 return;
             }
 
-            if (!responsable) {
-                mostrarNotificacion("Por favor, ingresá el nombre del responsable.", "error");
-                return;
-            }
-
-            const botonSubmit = document.getElementById("btn-guardar-stock");
-            if (botonSubmit) {
-                botonSubmit.disabled = true;
-                botonSubmit.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Enviando a Google Sheets...`;
-            }
-
-            // Recolectar datos de la tabla de stock
             const registrosStock = [];
-
             document.querySelectorAll(".input-stock-inicial").forEach((inputInicial, idx) => {
                 const inputFinal = document.querySelectorAll(".input-stock-final")[idx];
                 const tr = inputInicial.closest("tr");
                 const nombreProducto = tr.querySelector("td").innerText;
-
-                const valInicial = parseFloat(inputInicial.value) || 0;
-                const valFinal = parseFloat(inputFinal.value) || 0;
-                const diferencia = valInicial - valFinal;
-
                 registrosStock.push({
                     semana: semanaActualStr,
                     barra: barra,
                     responsable: responsable,
                     producto: nombreProducto,
-                    inicial: valInicial,
-                    final: valFinal,
-                    diferencia: diferencia,
+                    inicial: parseFloat(inputInicial.value) || 0,
+                    final: parseFloat(inputFinal.value) || 0,
+                    diferencia: (parseFloat(inputInicial.value) || 0) - (parseFloat(inputFinal.value) || 0),
                     fecha_envio: new Date().toLocaleString('es-AR')
                 });
             });
 
-            // URL nueva configurada para la pestaña Stock
             const URL_GOOGLE_SHEET = "https://script.google.com/macros/s/AKfycbycJG08ka_8BewGw3TxtwlRL1TZKz6BMP4jn2yY_PoWj8nVs8e4bbKWKDQCD5ecgymfVA/exec";
-
             try {
-                const response = await fetch(URL_GOOGLE_SHEET, {
+                await fetch(URL_GOOGLE_SHEET, {
                     method: "POST",
                     mode: "no-cors",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(registrosStock)
                 });
-
-                mostrarNotificacion("¡Planilla de stock enviada a Google Sheets con éxito!", "exito");
+                mostrarNotificacion("¡Planilla de stock enviada con éxito!", "exito");
                 setTimeout(() => { window.location.reload(); }, 1500);
-
             } catch (err) {
-                console.error("Error al enviar a Google Sheets:", err);
-                mostrarNotificacion("Error al enviar los datos. Verificá la conexión.", "error");
-                if (botonSubmit) {
-                    botonSubmit.disabled = false;
-                    botonSubmit.innerHTML = `<i class="bi bi-save2-fill me-2"></i>GUARDAR PLANILLA DE STOCK`;
-                }
+                mostrarNotificacion("Error al enviar los datos.", "error");
             }
         });
     }
@@ -640,25 +560,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (inputComida) {
             inputComida.addEventListener("input", (e) => {
                 const texto = e.target.value.toLowerCase().trim();
-                const filtrados = listaComidasGlobal.filter(p => {
-                    const nom = (p.nombre || "").toLowerCase();
-                    const desc = (p.descripcion || "").toLowerCase();
-                    return nom.includes(texto) || desc.includes(texto);
-                });
-                renderizarComidas(filtrados);
+                renderizarComidas(listaComidasGlobal.filter(p => p.nombre.toLowerCase().includes(texto) || p.descripcion.toLowerCase().includes(texto)));
             });
         }
-
         const inputBebida = document.getElementById("buscadorBebida");
         if (inputBebida) {
             inputBebida.addEventListener("input", (e) => {
                 const texto = e.target.value.toLowerCase().trim();
-                const filtrados = listaBebidasGlobal.filter(b => {
-                    const nom = (b.nombre || "").toLowerCase();
-                    const desc = (b.descripcion || "").toLowerCase();
-                    return nom.includes(texto) || desc.includes(texto);
-                });
-                renderizarBebidas(filtrados);
+                renderizarBebidas(listaBebidasGlobal.filter(b => b.nombre.toLowerCase().includes(texto) || b.descripcion.toLowerCase().includes(texto)));
             });
         }
     }

@@ -112,7 +112,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     .eq('dia', diaSeleccionado);
 
                 if (error) throw error;
-                mostrarNotificacion("Mozo removido de la convocatoria.", "exito");
+                mostrarNotificacion("Personal removido de la convocatoria.", "exito");
             } else {
                 const { error } = await _supabase
                     .from('convocados')
@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ]);
 
                 if (error) throw error;
-                mostrarNotificacion("Mozo convocado con éxito.", "exito");
+                mostrarNotificacion("Personal convocado con éxito.", "exito");
             }
 
             cargarPanelAdmin();
@@ -162,7 +162,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    // === EXPORTACIÓN DE MOZOS A GOOGLE SHEETS (CON FECHA YYYY-MM-DD DIRECTA) ===
     window.exportarMozosA_GoogleSheets = async () => {
         try {
             const inputsPropinas = document.querySelectorAll('#equipo-convocado-final input[type="number"]');
@@ -186,43 +185,39 @@ document.addEventListener("DOMContentLoaded", async () => {
             const normalizarTexto = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
             const diaActualNorm = normalizarTexto(diaSeleccionado);
 
-            const mozosConvocados = (convocados || []).filter(c => {
-                const esMozo = c.usuarios && c.usuarios.rol === 'mozo';
+            const personalConvocado = (convocados || []).filter(c => {
+                const esStaff = c.usuarios && (c.usuarios.rol === 'mozo' || c.usuarios.rol === 'bartender');
                 const diaConvocadoNorm = normalizarTexto(c.dia || 'Sábado');
-                return esMozo && (diaConvocadoNorm === diaActualNorm);
+                return esStaff && (diaConvocadoNorm === diaActualNorm);
             });
 
-            if (mozosConvocados.length === 0) {
-                mostrarNotificacion(`No hay mozos convocados para el día ${diaSeleccionado}.`, "error");
+            if (personalConvocado.length === 0) {
+                mostrarNotificacion(`No hay personal convocado para el día ${diaSeleccionado}.`, "error");
                 return;
             }
 
-            const filasProcesadas = mozosConvocados.map(item => ({
+            const filasProcesadas = personalConvocado.map(item => ({
                 semana: fechaDiariaExacta,
                 usuario: item.usuarios.nombre_real || item.user_name,
-                rol: `Mozo (${diaSeleccionado})`,
+                rol: `${item.usuarios.rol.charAt(0).toUpperCase() + item.usuarios.rol.slice(1)} (${diaSeleccionado})`,
                 sector: item.sector || 'Principal',
                 propina: item.propina_individual || 0
             }));
 
             mostrarNotificacion("Enviando Reporte a Google Sheets...", "exito");
-
             await fetch(URL_WEBHOOK_SHEETS, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tipo: "mozos", filas: filasProcesadas })
+                body: JSON.stringify({ tipo: "staff", filas: filasProcesadas })
             });
-
-            mostrarNotificacion("¡Reporte de Mozos exportado con éxito!", "exito");
-
+            mostrarNotificacion("¡Reporte exportado con éxito!", "exito");
         } catch (err) {
-            console.error("Error al exportar mozos:", err);
-            mostrarNotificacion("Ocurrió un error al exportar los mozos.", "error");
+            console.error("Error al exportar:", err);
+            mostrarNotificacion("Ocurrió un error al exportar los datos.", "error");
         }
     };
 
-    // === CARGA ASÍNCRONA DE DATOS ===
     async function cargarPanelAdmin() {
         try {
             const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
@@ -248,12 +243,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             if(contenedorEquipoFinal) contenedorEquipoFinal.innerHTML = "";
 
             let cuentaConvocados = 0;
-
-            // Mapea el día a minúsculas sin tildes para la agenda (ej: Miércoles -> miercoles)
             const claveDiaAgenda = diaSeleccionado.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
             usuariosDB.forEach(usuario => {
-                // RENDER TABLA CRUD USUARIOS
                 if (usuario.rol !== "super_admin" && tablaCRUD) {
                     const filaHTML = `
                         <tr>
@@ -278,14 +270,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                     tablaCRUD.innerHTML += filaHTML;
                 }
 
-                if (usuario.rol === "mozo") {
+                // Lógica unificada para mozos y bartenders
+                const esPersonal = usuario.rol === "mozo" || usuario.rol === "bartender";
+                if (esPersonal) {
                     const nombreMostrar = usuario.nombre_real || usuario.user_name;
                     const agendaUsuario = agendasDB.find(a => a.user_name === usuario.user_name);
-                    
-                    // Buscar si está convocado EL DÍA SELECCIONADO
                     const registroConvocado = convocadosDB.find(c => c.user_name === usuario.user_name && (c.dia === diaSeleccionado || (!c.dia && diaSeleccionado === 'Sábado')));
                     const estaConvocado = !!registroConvocado;
-
                     const estaDisponibleEsteDia = agendaUsuario && agendaUsuario[claveDiaAgenda] === true;
 
                     if (estaDisponibleEsteDia) {
@@ -293,18 +284,14 @@ document.addEventListener("DOMContentLoaded", async () => {
                             cuentaConvocados++;
                             const sectorActual = registroConvocado.sector || "Principal";
                             const propinaActual = registroConvocado.propina_individual || 0;
-
                             let optionsHTML = "";
-                            opcionesSectores.forEach(s => {
-                                optionsHTML += `<option value="${s}" ${s === sectorActual ? 'selected' : ''}>${s}</option>`;
-                            });
+                            opcionesSectores.forEach(s => optionsHTML += `<option value="${s}" ${s === sectorActual ? 'selected' : ''}>${s}</option>`);
 
                             contenedorEquipoFinal.innerHTML += `
                                 <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-success p-2" style="background-color: #121f15 !important;">
                                     <div class="fw-bold text-success me-3">
-                                        <i class="bi bi-check-circle-fill me-1"></i>${nombreMostrar}
+                                        <i class="bi bi-check-circle-fill me-1"></i>${nombreMostrar} <small class="text-secondary">(${usuario.rol})</small>
                                     </div>
-                                    
                                     <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-end">
                                         <div class="input-group input-group-sm" style="max-width: 170px;">
                                             <span class="input-group-text bg-dark text-secondary border-secondary"><i class="bi bi-geo-alt"></i></span>
@@ -312,12 +299,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                                                 ${optionsHTML}
                                             </select>
                                         </div>
-
                                         <div class="input-group input-group-sm" style="max-width: 140px;">
                                             <span class="input-group-text bg-dark text-warning border-secondary"><i class="bi bi-cash"></i></span>
                                             <input type="number" class="form-control bg-dark text-light border-secondary" placeholder="Propina $" data-user="${usuario.user_name}" value="${propinaActual}" onchange="guardarPropinaMozo('${usuario.user_name}', this.value)">
                                         </div>
-
                                         <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="alternarConvocatoria('${usuario.user_name}', true)" title="Quitar">
                                             <i class="bi bi-person-dash"></i>
                                         </button>
@@ -329,7 +314,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const itemHTML = `
                             <div class="list-group-item list-group-item-custom d-flex justify-content-between align-items-center rounded-3 mb-2">
                                 <div class="ms-2 me-auto">
-                                    <div class="fw-bold text-light">${nombreMostrar}</div>
+                                    <div class="fw-bold text-light">${nombreMostrar} <small class="text-secondary">(${usuario.rol})</small></div>
                                     <span class="${agendaUsuario.observaciones ? 'text-warning' : 'text-muted'} small">
                                         ${agendaUsuario.observaciones ? 'Nota: ' + agendaUsuario.observaciones : 'Sin observaciones.'}
                                     </span>
@@ -345,9 +330,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             });
 
             if (contenedorEquipoFinal && cuentaConvocados === 0) {
-                contenedorEquipoFinal.innerHTML = `<p class="text-muted small text-center my-2">No seleccionaste mozos para trabajar el ${diaSeleccionado} todavía.</p>`;
+                contenedorEquipoFinal.innerHTML = `<p class="text-muted small text-center my-2">No seleccionaste personal para trabajar el ${diaSeleccionado} todavía.</p>`;
             }
-
         } catch (err) {
             console.error("Error al cargar panel de Admin:", err);
         }

@@ -18,7 +18,7 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
             }
         }).showToast();
     } else {
-        alert(mensaje); // Fallback por si falta el script en el HTML
+        alert(mensaje);
     }
 }
 
@@ -313,9 +313,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
 
-            // RENDER DE BARTENDERS: CONVOCADOS, DISPONIBLES Y CRUD
+            // RENDER DE BARTENDERS: CONVOCADOS, DISPONIBLES Y CRUD (SOPORTA 'bartender' Y 'admin_barra')
             usuariosDB.forEach(usuario => {
-                if (usuario.rol === "bartender" && tablaCRUD) {
+                const rolLimpio = (usuario.rol || "").toLowerCase().trim();
+                const esBartender = rolLimpio === "bartender" || rolLimpio === "admin_barra";
+
+                if (esBartender && tablaCRUD) {
                     tablaCRUD.innerHTML += `
                         <tr>
                             <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-bname-${usuario.user_name}" value="${usuario.nombre_real || ''}"></td>
@@ -324,6 +327,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             <td>
                                 <select class="form-select form-select-sm bg-dark text-light border-secondary text-center" id="edit-brole-${usuario.user_name}">
                                     <option value="bartender" ${usuario.rol === 'bartender' ? 'selected' : ''}>Bartender</option>
+                                    <option value="admin_barra" ${usuario.rol === 'admin_barra' ? 'selected' : ''}>Jefe de Barra</option>
                                     <option value="mozo" ${usuario.rol === 'mozo' ? 'selected' : ''}>Mozo</option>
                                 </select>
                             </td>
@@ -337,7 +341,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     `;
                 }
 
-                if (usuario.rol === "bartender") {
+                if (esBartender) {
                     const nombreMostrar = usuario.nombre_real || usuario.user_name;
                     const agendaUsuario = agendasDB.find(a => a.user_name === usuario.user_name);
 
