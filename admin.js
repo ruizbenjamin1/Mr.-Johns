@@ -37,6 +37,101 @@ document.addEventListener("DOMContentLoaded", async () => {
     const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio"];
     const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbzNq6zFAAEj7TTqdz5A78ZRcPhb8I80DlCm_F0E05T1lZWzuEkJ1aeStZb1K1vWM3X_UQ/exec";
 
+    // === CONTRASEÑA PARA VER LA TABLA DE PERSONAL REGISTRADO ===
+    // Cambiá esta clave por la que quieras usar.
+    const CLAVE_PANEL_REGISTRADOS = "mrjohns2026";
+
+    function configurarBloqueoRegistrados(prefijo, clave) {
+        const bloqueo = document.getElementById(`bloqueo-crud-${prefijo}`);
+        const contenido = document.getElementById(`contenido-crud-${prefijo}`);
+        const input = document.getElementById(`input-clave-crud-${prefijo}`);
+        const btnDesbloquear = document.getElementById(`btn-desbloquear-crud-${prefijo}`);
+        const btnBloquear = document.getElementById(`btn-bloquear-crud-${prefijo}`);
+
+        if (!bloqueo || !contenido) return;
+
+        const claveSesion = `crudDesbloqueado_${prefijo}`;
+
+        const mostrarContenido = () => {
+            bloqueo.classList.add("d-none");
+            contenido.classList.remove("d-none");
+            sessionStorage.setItem(claveSesion, "true");
+        };
+
+        const ocultarContenido = () => {
+            contenido.classList.add("d-none");
+            bloqueo.classList.remove("d-none");
+            sessionStorage.removeItem(claveSesion);
+            if (input) input.value = "";
+        };
+
+        // Si ya se desbloqueó antes en esta misma sesión de trabajo, lo dejamos visible
+        if (sessionStorage.getItem(claveSesion) === "true") {
+            mostrarContenido();
+        }
+
+        if (btnDesbloquear) {
+            btnDesbloquear.addEventListener("click", () => {
+                if (input && input.value === clave) {
+                    mostrarContenido();
+                } else {
+                    mostrarNotificacion("Contraseña incorrecta.", "error");
+                }
+            });
+        }
+
+        if (input) {
+            input.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (btnDesbloquear) btnDesbloquear.click();
+                }
+            });
+        }
+
+        if (btnBloquear) {
+            btnBloquear.addEventListener("click", ocultarContenido);
+        }
+    }
+
+    configurarBloqueoRegistrados("usuarios", CLAVE_PANEL_REGISTRADOS);
+
+    // === SELECTOR DE CATEGORÍA (Jefes / Mozos / Bartenders) ===
+    function configurarSelectorCategoriaPersonal() {
+        const botones = document.querySelectorAll(".btn-categoria-personal");
+        const paneles = document.querySelectorAll(".categoria-personal-panel");
+
+        const estilosCategoria = {
+            jefes: { activo: ["btn-info", "text-dark"], inactivo: ["btn-outline-info"] },
+            mozos: { activo: ["btn-warning", "text-dark"], inactivo: ["btn-outline-warning"] },
+            bartenders: { activo: ["btn-light", "text-dark"], inactivo: ["btn-outline-light"] }
+        };
+
+        const mostrarCategoria = (categoria) => {
+            paneles.forEach(panel => {
+                panel.classList.toggle("d-none", panel.id !== `categoria-${categoria}`);
+            });
+
+            botones.forEach(btn => {
+                const cat = btn.getAttribute("data-categoria");
+                const estilos = estilosCategoria[cat];
+                if (!estilos) return;
+                btn.classList.remove(...estilos.activo, ...estilos.inactivo);
+                btn.classList.add(...(cat === categoria ? estilos.activo : estilos.inactivo));
+            });
+        };
+
+        botones.forEach(btn => {
+            btn.addEventListener("click", () => mostrarCategoria(btn.getAttribute("data-categoria")));
+        });
+
+        if (botones.length > 0) {
+            mostrarCategoria(botones[0].getAttribute("data-categoria"));
+        }
+    }
+
+    configurarSelectorCategoriaPersonal();
+
     // ESTADO DEL DÍA SELECCIONADO PARA LA GESTIÓN
     let diaSeleccionado = "Sábado";
     const selectDia = document.getElementById("select-dia-gestion");
@@ -236,18 +331,30 @@ document.addEventListener("DOMContentLoaded", async () => {
             const convocadosDB = resConvocados.data || [];
 
             const listaMozos = document.getElementById("lista-mozos-confirmados");
-            const tablaCRUD = document.getElementById("tabla-usuarios-crud");
+            const tablaCRUDJefes = document.getElementById("tabla-usuarios-crud-jefes");
+            const tablaCRUDMozos = document.getElementById("tabla-usuarios-crud-mozos");
+            const tablaCRUDBartenders = document.getElementById("tabla-usuarios-crud-bartenders");
             const contenedorEquipoFinal = document.getElementById("equipo-convocado-final");
 
             if(listaMozos) listaMozos.innerHTML = "";
-            if(tablaCRUD) tablaCRUD.innerHTML = "";
+            if(tablaCRUDJefes) tablaCRUDJefes.innerHTML = "";
+            if(tablaCRUDMozos) tablaCRUDMozos.innerHTML = "";
+            if(tablaCRUDBartenders) tablaCRUDBartenders.innerHTML = "";
             if(contenedorEquipoFinal) contenedorEquipoFinal.innerHTML = "";
 
             let cuentaConvocados = 0;
             const claveDiaAgenda = diaSeleccionado.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
+            // Elegimos a qué tabla va cada usuario según su rol (jefe de barra, mozo o bartender)
+            const tablasCRUDPorRol = {
+                admin_barra: tablaCRUDJefes,
+                mozo: tablaCRUDMozos,
+                bartender: tablaCRUDBartenders
+            };
+
             usuariosDB.forEach(usuario => {
-                if (usuario.rol !== "super_admin" && tablaCRUD) {
+                const tablaDestino = tablasCRUDPorRol[usuario.rol];
+                if (usuario.rol !== "super_admin" && tablaDestino) {
                     const filaHTML = `
                         <tr>
                             <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-name-${usuario.user_name}" value="${usuario.nombre_real || ''}"></td>
@@ -268,7 +375,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             </td>
                         </tr>
                     `;
-                    tablaCRUD.innerHTML += filaHTML;
+                    tablaDestino.innerHTML += filaHTML;
                 }
 
                 // El panel de Admin solo convoca MOZOS. Los bartenders se convocan

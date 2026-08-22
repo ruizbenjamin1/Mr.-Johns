@@ -109,21 +109,42 @@
         <!-- BLOQUE 4: GESTIÓN DE BARTENDERS REGISTRADOS (CRUD) -->
         <div class="card card-barra p-3 rounded-3 shadow-sm" style="background-color: #171722; border: 1px solid #2a2a3a;">
             <h5 class="fw-bold mb-3 text-light"><i class="bi bi-gear-fill me-2"></i>Gestionar Bartenders Registrados</h5>
-            <div class="table-responsive">
-                <table class="table table-dark align-middle text-center mb-0" style="font-size: 0.9rem;">
-                    <thead>
-                        <tr>
-                            <th>Nombre Real</th>
-                            <th>Usuario</th>
-                            <th>Contraseña</th>
-                            <th>Rol</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-bartenders-crud">
-                        <!-- Carga dinámica -->
-                    </tbody>
-                </table>
+
+            <!-- BLOQUEO POR CONTRASEÑA -->
+            <div id="bloqueo-crud-bartenders" class="text-center py-4">
+                <i class="bi bi-lock-fill text-info" style="font-size: 2rem;"></i>
+                <p class="text-muted small mt-2 mb-3">Esta sección está protegida. Ingresá la contraseña para ver los bartenders registrados.</p>
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    <input type="password" id="input-clave-crud-bartenders" class="form-control bg-dark text-light border-secondary" placeholder="Contraseña" style="max-width: 220px;">
+                    <button id="btn-desbloquear-crud-bartenders" class="btn btn-info text-dark fw-bold">
+                        <i class="bi bi-unlock-fill me-1"></i>Desbloquear
+                    </button>
+                </div>
+            </div>
+
+            <!-- CONTENIDO PROTEGIDO -->
+            <div id="contenido-crud-bartenders" class="d-none">
+                <div class="d-flex justify-content-end mb-2">
+                    <button id="btn-bloquear-crud-bartenders" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-lock-fill me-1"></i>Ocultar
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-dark align-middle text-center mb-0" style="font-size: 0.9rem;">
+                        <thead>
+                            <tr>
+                                <th>Nombre Real</th>
+                                <th>Usuario</th>
+                                <th>Contraseña</th>
+                                <th>Rol</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-bartenders-crud">
+                            <!-- Carga dinámica -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 

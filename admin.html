@@ -106,21 +106,98 @@
                 <span class="badge bg-secondary">BD Supabase</span>
             </div>
 
-            <div class="table-responsive rounded-3 border border-secondary">
-                <table class="table table-dark-custom align-middle text-center mb-0" style="font-size: 0.85rem;">
-                    <thead>
-                        <tr>
-                            <th scope="col">Nombre Real</th>
-                            <th scope="col">Usuario</th>
-                            <th scope="col">Contraseña</th>
-                            <th scope="col">Rol</th>
-                            <th scope="col">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-usuarios-crud">
-                        <!-- JS inyectará las filas editables aquí -->
-                    </tbody>
-                </table>
+            <!-- BLOQUEO POR CONTRASEÑA -->
+            <div id="bloqueo-crud-usuarios" class="text-center py-4">
+                <i class="bi bi-lock-fill text-warning" style="font-size: 2rem;"></i>
+                <p class="text-muted small mt-2 mb-3">Esta sección está protegida. Ingresá la contraseña para ver los usuarios registrados.</p>
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    <input type="password" id="input-clave-crud-usuarios" class="form-control bg-dark text-light border-secondary" placeholder="Contraseña" style="max-width: 220px;">
+                    <button id="btn-desbloquear-crud-usuarios" class="btn btn-warning fw-bold">
+                        <i class="bi bi-unlock-fill me-1"></i>Desbloquear
+                    </button>
+                </div>
+            </div>
+
+            <!-- CONTENIDO PROTEGIDO -->
+            <div id="contenido-crud-usuarios" class="d-none">
+                <div class="d-flex justify-content-end mb-2">
+                    <button id="btn-bloquear-crud-usuarios" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-lock-fill me-1"></i>Ocultar
+                    </button>
+                </div>
+
+                <!-- SELECTOR DE CATEGORÍA -->
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                    <button type="button" class="btn btn-sm fw-bold flex-grow-1 btn-categoria-personal btn-info text-dark" data-categoria="jefes">
+                        <i class="bi bi-cup-straw me-1"></i>Jefes de Barra
+                    </button>
+                    <button type="button" class="btn btn-sm fw-bold flex-grow-1 btn-categoria-personal btn-outline-warning" data-categoria="mozos">
+                        <i class="bi bi-person-badge-fill me-1"></i>Mozos
+                    </button>
+                    <button type="button" class="btn btn-sm fw-bold flex-grow-1 btn-categoria-personal btn-outline-light" data-categoria="bartenders">
+                        <i class="bi bi-cup-straw me-1"></i>Bartenders
+                    </button>
+                </div>
+
+                <!-- JEFES DE BARRA -->
+                <div id="categoria-jefes" class="categoria-personal-panel">
+                    <div class="table-responsive rounded-3 border border-secondary">
+                        <table class="table table-dark-custom align-middle text-center mb-0" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Nombre Real</th>
+                                    <th scope="col">Usuario</th>
+                                    <th scope="col">Contraseña</th>
+                                    <th scope="col">Rol</th>
+                                    <th scope="col">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-usuarios-crud-jefes">
+                                <!-- JS inyectará las filas editables aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- MOZOS -->
+                <div id="categoria-mozos" class="categoria-personal-panel d-none">
+                    <div class="table-responsive rounded-3 border border-secondary">
+                        <table class="table table-dark-custom align-middle text-center mb-0" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Nombre Real</th>
+                                    <th scope="col">Usuario</th>
+                                    <th scope="col">Contraseña</th>
+                                    <th scope="col">Rol</th>
+                                    <th scope="col">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-usuarios-crud-mozos">
+                                <!-- JS inyectará las filas editables aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- BARTENDERS -->
+                <div id="categoria-bartenders" class="categoria-personal-panel d-none">
+                    <div class="table-responsive rounded-3 border border-secondary">
+                        <table class="table table-dark-custom align-middle text-center mb-0" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Nombre Real</th>
+                                    <th scope="col">Usuario</th>
+                                    <th scope="col">Contraseña</th>
+                                    <th scope="col">Rol</th>
+                                    <th scope="col">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-usuarios-crud-bartenders">
+                                <!-- JS inyectará las filas editables aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 

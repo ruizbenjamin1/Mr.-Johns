@@ -37,6 +37,65 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sectoresBarra = ["Vip", "Cantina", "Altillo", "Principal", "Patio", "Evento"];
     const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbzNq6zFAAEj7TTqdz5A78ZRcPhb8I80DlCm_F0E05T1lZWzuEkJ1aeStZb1K1vWM3X_UQ/exec";
 
+    // === CONTRASEÑA PARA VER LA TABLA DE BARTENDERS REGISTRADOS ===
+    // Cambiá esta clave por la que quieras usar.
+    const CLAVE_PANEL_REGISTRADOS = "river.erome";
+
+    function configurarBloqueoRegistrados(prefijo, clave) {
+        const bloqueo = document.getElementById(`bloqueo-crud-${prefijo}`);
+        const contenido = document.getElementById(`contenido-crud-${prefijo}`);
+        const input = document.getElementById(`input-clave-crud-${prefijo}`);
+        const btnDesbloquear = document.getElementById(`btn-desbloquear-crud-${prefijo}`);
+        const btnBloquear = document.getElementById(`btn-bloquear-crud-${prefijo}`);
+
+        if (!bloqueo || !contenido) return;
+
+        const claveSesion = `crudDesbloqueado_${prefijo}`;
+
+        const mostrarContenido = () => {
+            bloqueo.classList.add("d-none");
+            contenido.classList.remove("d-none");
+            sessionStorage.setItem(claveSesion, "true");
+        };
+
+        const ocultarContenido = () => {
+            contenido.classList.add("d-none");
+            bloqueo.classList.remove("d-none");
+            sessionStorage.removeItem(claveSesion);
+            if (input) input.value = "";
+        };
+
+        // Si ya se desbloqueó antes en esta misma sesión de trabajo, lo dejamos visible
+        if (sessionStorage.getItem(claveSesion) === "true") {
+            mostrarContenido();
+        }
+
+        if (btnDesbloquear) {
+            btnDesbloquear.addEventListener("click", () => {
+                if (input && input.value === clave) {
+                    mostrarContenido();
+                } else {
+                    mostrarNotificacion("Contraseña incorrecta.", "error");
+                }
+            });
+        }
+
+        if (input) {
+            input.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (btnDesbloquear) btnDesbloquear.click();
+                }
+            });
+        }
+
+        if (btnBloquear) {
+            btnBloquear.addEventListener("click", ocultarContenido);
+        }
+    }
+
+    configurarBloqueoRegistrados("bartenders", CLAVE_PANEL_REGISTRADOS);
+
     // ESTADO DEL DÍA SELECCIONADO
     let diaSeleccionado = "Sábado";
     const selectDia = document.getElementById("select-dia-gestion");
