@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // === CONTRASEÑA PARA VER LA TABLA DE PERSONAL REGISTRADO ===
     // Cambiá esta clave por la que quieras usar.
-    const CLAVE_PANEL_REGISTRADOS = "mrjohns2026";
+    const CLAVE_PANEL_REGISTRADOS = "boca.erome";
 
     function configurarBloqueoRegistrados(prefijo, clave) {
         const bloqueo = document.getElementById(`bloqueo-crud-${prefijo}`);
