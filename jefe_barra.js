@@ -252,7 +252,18 @@ document.addEventListener("DOMContentLoaded", async () => {
                 })
             });
 
-            mostrarNotificacion("¡Reporte de Barras exportado con éxito!", "exito");
+            // Una vez exportado, las propinas vuelven a $0 (en pantalla y en la base)
+            for (const fila of filasTabla) {
+                const tdSector = fila.querySelector('td');
+                const inputMonto = fila.querySelector('input[type="number"]');
+                if (tdSector && inputMonto) {
+                    inputMonto.value = 0;
+                    const sectorNombre = tdSector.textContent.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, "").trim();
+                    await guardarPropinaBarra(sectorNombre, 0);
+                }
+            }
+
+            mostrarNotificacion("¡Reporte de Barras exportado con éxito! Las propinas se reiniciaron a $0.", "exito");
 
         } catch (err) {
             console.error("Error al exportar barras:", err);
@@ -263,22 +274,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     // === 4. CARGA ASÍNCRONA DE DATOS ===
     async function cargarPanelJefeBarra() {
         try {
-            const [resUsuarios, resAgendas, resConvocados, resPropinasBarras] = await Promise.all([
+            const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
                 _supabase.from('usuarios').select('*'),
                 _supabase.from('agendas').select('*'),
-                _supabase.from('convocados').select('*'),
-                _supabase.from('propinas_barras').select('*')
+                _supabase.from('convocados').select('*')
             ]);
 
             if (resUsuarios.error) throw resUsuarios.error;
             if (resAgendas.error) throw resAgendas.error;
             if (resConvocados.error) throw resConvocados.error;
-            if (resPropinasBarras.error) throw resPropinasBarras.error;
 
             const usuariosDB = resUsuarios.data || [];
             const agendasDB = resAgendas.data || [];
             const convocadosDB = resConvocados.data || [];
-            const propinasBarrasDB = resPropinasBarras.data || [];
 
             const listaBartenders = document.getElementById("lista-bartenders-confirmados");
             const contenedorEquipoFinal = document.getElementById("equipo-barra-final");
@@ -294,10 +302,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const claveDiaAgenda = diaSeleccionado.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
             // RENDER PROPINAS POR SECTOR DE BARRA
+            // Siempre arrancan en $0: no se precarga el último monto guardado.
+            // Solo cambian si el Jefe de Barra las modifica manualmente en pantalla.
             sectoresBarra.forEach(barra => {
-                const regProp = propinasBarrasDB.find(pb => pb.sector_barra === barra && (pb.dia === diaSeleccionado || (!pb.dia && diaSeleccionado === 'Sábado')));
-                const montoActual = regProp ? regProp.monto : 0;
-
                 if (tablaPropinasBody) {
                     tablaPropinasBody.innerHTML += `
                         <tr>
@@ -305,7 +312,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             <td>
                                 <div class="input-group input-group-sm mx-auto" style="max-width: 200px;">
                                     <span class="input-group-text bg-dark text-warning border-secondary">$</span>
-                                    <input type="number" class="form-control bg-dark text-light border-secondary text-center" value="${montoActual}" onchange="guardarPropinaBarra('${barra}', this.value)">
+                                    <input type="number" class="form-control bg-dark text-light border-secondary text-center" value="0" onchange="guardarPropinaBarra('${barra}', this.value)">
                                 </div>
                             </td>
                         </tr>
@@ -348,7 +355,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const registroConvocado = convocadosDB.find(c => c.user_name === usuario.user_name && (c.dia === diaSeleccionado || (!c.dia && diaSeleccionado === 'Sábado')));
                     const estaConvocado = !!registroConvocado;
 
-                    const estaDisponibleEsteDia = agendaUsuario && agendaUsuario[claveDiaAgenda] === true;
+                    // La disponibilidad solo cuenta si el día elegido todavía no pasó
+                    // Y la agenda fue confirmada/actualizada dentro de la semana actual.
+                    const estaDisponibleEsteDia = agendaUsuario
+                        && agendaUsuario[claveDiaAgenda] === true
+                        && estaDisponibilidadVigente(claveDiaAgenda, agendaUsuario.updated_at);
 
                     if (estaDisponibleEsteDia) {
                         if (estaConvocado && contenedorEquipoFinal) {

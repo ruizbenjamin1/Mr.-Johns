@@ -185,14 +185,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             const normalizarTexto = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
             const diaActualNorm = normalizarTexto(diaSeleccionado);
 
+            // Solo se exportan MOZOS (los bartenders se gestionan y exportan desde el panel de Jefe de Barra)
             const personalConvocado = (convocados || []).filter(c => {
-                const esStaff = c.usuarios && (c.usuarios.rol === 'mozo' || c.usuarios.rol === 'bartender');
+                const esMozo = c.usuarios && c.usuarios.rol === 'mozo';
                 const diaConvocadoNorm = normalizarTexto(c.dia || 'Sábado');
-                return esStaff && (diaConvocadoNorm === diaActualNorm);
+                return esMozo && (diaConvocadoNorm === diaActualNorm);
             });
 
             if (personalConvocado.length === 0) {
-                mostrarNotificacion(`No hay personal convocado para el día ${diaSeleccionado}.`, "error");
+                mostrarNotificacion(`No hay mozos convocados para el día ${diaSeleccionado}.`, "error");
                 return;
             }
 
@@ -270,14 +271,20 @@ document.addEventListener("DOMContentLoaded", async () => {
                     tablaCRUD.innerHTML += filaHTML;
                 }
 
-                // Lógica unificada para mozos y bartenders
-                const esPersonal = usuario.rol === "mozo" || usuario.rol === "bartender";
+                // El panel de Admin solo convoca MOZOS. Los bartenders se convocan
+                // desde el panel de Jefe de Barra (jefe_barra.html).
+                const esPersonal = usuario.rol === "mozo";
                 if (esPersonal) {
                     const nombreMostrar = usuario.nombre_real || usuario.user_name;
                     const agendaUsuario = agendasDB.find(a => a.user_name === usuario.user_name);
                     const registroConvocado = convocadosDB.find(c => c.user_name === usuario.user_name && (c.dia === diaSeleccionado || (!c.dia && diaSeleccionado === 'Sábado')));
                     const estaConvocado = !!registroConvocado;
-                    const estaDisponibleEsteDia = agendaUsuario && agendaUsuario[claveDiaAgenda] === true;
+
+                    // La disponibilidad solo cuenta si el día elegido todavía no pasó
+                    // Y la agenda fue confirmada/actualizada dentro de la semana actual.
+                    const estaDisponibleEsteDia = agendaUsuario
+                        && agendaUsuario[claveDiaAgenda] === true
+                        && estaDisponibilidadVigente(claveDiaAgenda, agendaUsuario.updated_at);
 
                     if (estaDisponibleEsteDia) {
                         if (estaConvocado && contenedorEquipoFinal) {

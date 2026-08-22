@@ -66,7 +66,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             const checkbox = document.getElementById(diasIds[dia]);
             const badge = document.getElementById(`badge-${dia}`);
             if (checkbox && badge) {
-                if (checkbox.checked) {
+                if (checkbox.disabled) {
+                    // El día ya pasó esta semana: la disponibilidad quedó "borrada" y bloqueada
+                    badge.innerText = "Turno finalizado";
+                    badge.className = "badge bg-secondary bg-opacity-25 text-secondary border border-secondary small";
+                } else if (checkbox.checked) {
                     badge.innerText = "¡Confirmado!";
                     badge.className = "badge bg-success bg-opacity-25 text-success border border-success small";
                 } else {
@@ -143,18 +147,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         // Cargar estado previo de la Agenda Semanal del Usuario
-        if (agendaPropia) {
-            Object.keys(diasIds).forEach(dia => {
-                const checkbox = document.getElementById(diasIds[dia]);
-                if (checkbox) {
-                    checkbox.checked = agendaPropia[dia] || false;
-                }
-            });
-            const inputObs = document.getElementById("observaciones");
-            if (inputObs) { 
-                inputObs.value = agendaPropia.observaciones || ""; 
+        // REGLA NUEVA: cada día que ya pasó esta semana se bloquea y se muestra sin confirmar
+        // (se "borra" automáticamente). Si la agenda guardada es de una semana anterior,
+        // se ignora y arranca en blanco para que el empleado la vuelva a completar.
+        Object.keys(diasIds).forEach(dia => {
+            const checkbox = document.getElementById(diasIds[dia]);
+            if (!checkbox) return;
+
+            const diaYaPaso = yaPasoEsteDiaEnLaSemana(dia);
+            checkbox.disabled = diaYaPaso;
+
+            if (diaYaPaso) {
+                // Día vencido: se borra y queda bloqueado para no poder re-marcarlo
+                checkbox.checked = false;
+            } else if (agendaPropia && estaDisponibilidadVigente(dia, agendaPropia.updated_at)) {
+                // Día futuro (o de hoy) y la agenda es de esta misma semana: respetamos lo guardado
+                checkbox.checked = agendaPropia[dia] || false;
+            } else {
+                // Semana nueva (o nunca completó la agenda): arranca sin confirmar
+                checkbox.checked = false;
             }
+        });
+
+        const inputObs = document.getElementById("observaciones");
+        if (inputObs) {
+            const semanaDeLaAgenda = agendaPropia && agendaPropia.updated_at ? obtenerLunesDeFecha(agendaPropia.updated_at) : null;
+            const notaVigente = semanaDeLaAgenda === semanaActualStr;
+            inputObs.value = notaVigente ? (agendaPropia.observaciones || "") : "";
         }
+
         actualizarBadgesVisuales();
 
         // === 6. RENDER DE PLANILLA DE CONVOCADOS (FILTRADO ESTRICTAMENTE POR EL DÍA DE HOY) ===
@@ -243,7 +264,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const estadoDias = {};
             Object.keys(diasIds).forEach(dia => {
                 const checkbox = document.getElementById(diasIds[dia]);
-                estadoDias[dia] = checkbox ? checkbox.checked : false;
+                // Los días ya vencidos (checkbox.disabled) siempre se guardan como false,
+                // así queda "borrada" la disponibilidad de un día que ya pasó.
+                estadoDias[dia] = checkbox && !checkbox.disabled ? checkbox.checked : false;
             });
 
             const notaInput = document.getElementById("observaciones");
