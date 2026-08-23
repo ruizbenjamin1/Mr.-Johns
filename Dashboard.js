@@ -449,9 +449,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         const tabComidaElement = document.getElementById("comida-tab");
         const tabBebidaElement = document.getElementById("bebida-tab");
         const tabStockLi = document.getElementById("tab-item-stock");
+        const tabNotasLi = document.getElementById("tab-item-notas");
         
         if (tabComidaElement && tabComidaElement.parentElement) {
             tabComidaElement.parentElement.style.display = "none";
+        }
+
+        // El bloc de notas es exclusivo de los mozos
+        if (tabNotasLi) {
+            tabNotasLi.classList.add("d-none");
         }
 
         if (tabStockLi) {
@@ -470,10 +476,64 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderizarStock(listaStockGlobal);
     } else {
         renderizarComidas(listaComidasGlobal);
+        configurarBlocDeNotas(usuarioActivo);
     }
 
     renderizarBebidas(listaBebidasGlobal);
     configurarBuscadoresCarta();
+
+    // === BLOC DE NOTAS PERSONAL (SOLO MOZOS) ===
+    // Se guarda automáticamente en este dispositivo (localStorage), por usuario.
+    function configurarBlocDeNotas(usuario) {
+        const textarea = document.getElementById("bloc-notas-mozo");
+        const badge = document.getElementById("notas-guardado-badge");
+        const btnVaciar = document.getElementById("btn-vaciar-notas");
+        if (!textarea) return;
+
+        const claveNotas = `notasTurnoMozo_${(usuario || "").toLowerCase().trim()}`;
+
+        const marcarGuardado = () => {
+            if (!badge) return;
+            badge.innerText = "Guardado";
+            badge.className = "badge bg-success bg-opacity-25 text-success border border-success small";
+        };
+
+        const marcarEscribiendo = () => {
+            if (!badge) return;
+            badge.innerText = "Escribiendo...";
+            badge.className = "badge bg-secondary small";
+        };
+
+        // Cargar lo que tenía guardado de antes
+        const notaGuardada = localStorage.getItem(claveNotas);
+        if (notaGuardada) {
+            textarea.value = notaGuardada;
+            marcarGuardado();
+        }
+
+        let temporizadorGuardado = null;
+        textarea.addEventListener("input", () => {
+            marcarEscribiendo();
+            clearTimeout(temporizadorGuardado);
+            temporizadorGuardado = setTimeout(() => {
+                localStorage.setItem(claveNotas, textarea.value);
+                marcarGuardado();
+            }, 600);
+        });
+
+        if (btnVaciar) {
+            btnVaciar.addEventListener("click", () => {
+                if (!textarea.value.trim() || confirm("¿Vaciar todas las notas del turno?")) {
+                    textarea.value = "";
+                    localStorage.removeItem(claveNotas);
+                    if (badge) {
+                        badge.innerText = "Sin cambios";
+                        badge.className = "badge bg-secondary small";
+                    }
+                }
+            });
+        }
+    }
 
     function renderizarComidas(comidas) {
         const contenedor = document.getElementById("contenedorComidas");

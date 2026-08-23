@@ -166,11 +166,15 @@
             <h5 class="fw-bold mb-3 text-warning"><i class="bi bi-journal-richtext me-2"></i>Consulta de Carta</h5>
             
             <ul class="nav nav-tabs mb-3 justify-content-center" id="menuTabs" role="tablist">
-                <li class="nav-item w-50 text-center" id="tab-item-comida" role="presentation">
+                <li class="nav-item flex-fill text-center" id="tab-item-comida" role="presentation">
                     <button class="nav-link active w-100 fw-bold" id="comida-tab" data-bs-toggle="tab" data-bs-target="#comida" type="button" role="tab">🧆 Comidas</button>
                 </li>
-                <li class="nav-item w-50 text-center" id="tab-item-bebida" role="presentation">
+                <li class="nav-item flex-fill text-center" id="tab-item-bebida" role="presentation">
                     <button class="nav-link w-100 fw-bold" id="bebida-tab" data-bs-toggle="tab" data-bs-target="#bebida" type="button" role="tab">🍹 Bebidas</button>
+                </li>
+                <!-- Solapa de Notas: solo para Mozos (se oculta por JS para bartenders) -->
+                <li class="nav-item flex-fill text-center" id="tab-item-notas" role="presentation">
+                    <button class="nav-link w-100 fw-bold" id="notas-tab" data-bs-toggle="tab" data-bs-target="#notas" type="button" role="tab">📝 Notas</button>
                 </li>
                 <!-- Solapa de Stock oculta por defecto (solo se muestra para bartenders desde JS) -->
                 <li class="nav-item text-center d-none" id="tab-item-stock" role="presentation">
@@ -210,6 +214,23 @@
                     <!-- Contenedor dinámico de bebidas -->
                     <div id="contenedorBebidas">
                         <!-- JS inyectará las tarjetas acá automáticamente -->
+                    </div>
+                </div>
+
+                <!-- PESTAÑA NOTAS (SOLO MOZOS) -->
+                <div class="tab-pane fade" id="notas" role="tabpanel">
+                    <div class="card card-custom p-3 rounded-3" style="background-color: #16191c !important;">
+                        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                            <h6 class="fw-bold mb-0 text-warning"><i class="bi bi-journal-text me-2"></i>Bloc de Notas</h6>
+                            <span id="notas-guardado-badge" class="badge bg-secondary small">Sin cambios</span>
+                        </div>
+                        <p class="text-muted small mb-2">Anotá acá lo que necesites recordar durante el turno de esta noche. Se guarda solo, en este dispositivo.</p>
+                        <textarea id="bloc-notas-mozo" class="form-control bg-dark text-light border-secondary" rows="10" placeholder="Escribí tus notas del turno..."></textarea>
+                        <div class="d-flex justify-content-end mt-2">
+                            <button id="btn-vaciar-notas" type="button" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-trash me-1"></i>Vaciar notas
+                            </button>
+                        </div>
                     </div>
                 </div>
 
