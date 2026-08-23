@@ -445,6 +445,42 @@ document.addEventListener("DOMContentLoaded", async () => {
         { categoria: "AGUAS", nombre: "Agua mineral Benedictino c/gas" }
     ];
 
+    // === PERSISTENCIA DEL STOCK EN PROGRESO (sobrevive a un refresh, hasta que se exporte) ===
+    const CLAVE_STOCK_PROGRESO = "stockPlanillaEnProgreso";
+    const valoresStockManual = {};
+
+    function cargarProgresoStockGuardado() {
+        try {
+            const guardado = localStorage.getItem(CLAVE_STOCK_PROGRESO);
+            if (!guardado) return;
+            const datos = JSON.parse(guardado);
+            if (datos && datos.valores) {
+                Object.assign(valoresStockManual, datos.valores);
+            }
+            if (datos && datos.barra) {
+                const selectBarra = document.getElementById("select-barra");
+                if (selectBarra) selectBarra.value = datos.barra;
+            }
+            if (datos && datos.responsable) {
+                const inputResponsable = document.getElementById("input-nombre-stock");
+                if (inputResponsable) inputResponsable.value = datos.responsable;
+            }
+        } catch (err) {
+            console.error("Error al cargar el progreso de stock guardado:", err);
+        }
+    }
+
+    function guardarProgresoStockEnStorage() {
+        const selectBarra = document.getElementById("select-barra");
+        const inputResponsable = document.getElementById("input-nombre-stock");
+        const datos = {
+            valores: valoresStockManual,
+            barra: selectBarra ? selectBarra.value : "",
+            responsable: inputResponsable ? inputResponsable.value : ""
+        };
+        localStorage.setItem(CLAVE_STOCK_PROGRESO, JSON.stringify(datos));
+    }
+
     if (rolUsuario === "bartender" || rolUsuario === "barman" || rolUsuario === "administrador_barra" || rolUsuario === "admin_barra") {
         const tabComidaElement = document.getElementById("comida-tab");
         const tabBebidaElement = document.getElementById("bebida-tab");
@@ -473,6 +509,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             tabBebida.show();
         }
 
+        cargarProgresoStockGuardado();
         renderizarStock(listaStockGlobal);
     } else {
         renderizarComidas(listaComidasGlobal);
@@ -575,23 +612,42 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <td colspan="3" class="text-start ps-3 text-uppercase" style="background-color: #2a2f35; color: #ffc107 !important;">&mdash; ${categoriaActual} &mdash;</td>
                     </tr>`;
             }
+            const guardado = valoresStockManual[item.nombre] || { inicial: "0", final: "0" };
             contenedor.innerHTML += `
-                <tr>
+                <tr data-producto="${item.nombre}">
                     <td class="text-start ps-3 text-light">${item.nombre}</td>
-                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-inicial" min="0" step="0.01" inputmode="decimal" value="0"></td>
-                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-final" min="0" step="0.01" inputmode="decimal" value="0"></td>
+                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-inicial" min="0" step="0.01" inputmode="decimal" value="${guardado.inicial}"></td>
+                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-final" min="0" step="0.01" inputmode="decimal" value="${guardado.final}"></td>
                 </tr>`;
         });
     }
 
-    const buscadorStock = document.getElementById("buscadorStock");
-    if (buscadorStock) {
-        buscadorStock.addEventListener("input", (e) => {
-            const texto = e.target.value.toLowerCase().trim();
-            const filtrados = listaStockGlobal.filter(i => i.nombre.toLowerCase().includes(texto) || i.categoria.toLowerCase().includes(texto));
-            renderizarStock(filtrados);
+    // Cada vez que tipean algo (o cambian barra/responsable), lo guardamos al toque
+    // en memoria Y en localStorage, para que sobreviva si recargan la página.
+    const tablaStockBody = document.getElementById("tabla-stock-body");
+    if (tablaStockBody) {
+        tablaStockBody.addEventListener("input", (e) => {
+            const input = e.target;
+            const tr = input.closest("tr[data-producto]");
+            if (!tr) return;
+            const nombreProducto = tr.getAttribute("data-producto");
+            if (!valoresStockManual[nombreProducto]) {
+                valoresStockManual[nombreProducto] = { inicial: "0", final: "0" };
+            }
+            if (input.classList.contains("input-stock-inicial")) {
+                valoresStockManual[nombreProducto].inicial = input.value;
+            } else if (input.classList.contains("input-stock-final")) {
+                valoresStockManual[nombreProducto].final = input.value;
+            }
+            guardarProgresoStockEnStorage();
         });
     }
+
+    const selectBarraEl = document.getElementById("select-barra");
+    if (selectBarraEl) selectBarraEl.addEventListener("change", guardarProgresoStockEnStorage);
+
+    const inputResponsableEl = document.getElementById("input-nombre-stock");
+    if (inputResponsableEl) inputResponsableEl.addEventListener("input", guardarProgresoStockEnStorage);
 
     const formPlanillaStock = document.getElementById("formPlanillaStock");
     if (formPlanillaStock) {
@@ -605,21 +661,22 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            const registrosStock = [];
-            document.querySelectorAll(".input-stock-inicial").forEach((inputInicial, idx) => {
-                const inputFinal = document.querySelectorAll(".input-stock-final")[idx];
-                const tr = inputInicial.closest("tr");
-                const nombreProducto = tr.querySelector("td").innerText;
-                registrosStock.push({
+            // Armamos la planilla completa con TODOS los productos del stock,
+            // así queda lista para exportar apenas cargan la sección (sin buscador de por medio).
+            const registrosStock = listaStockGlobal.map(item => {
+                const guardado = valoresStockManual[item.nombre] || { inicial: "0", final: "0" };
+                const inicial = parseFloat(guardado.inicial) || 0;
+                const final = parseFloat(guardado.final) || 0;
+                return {
                     semana: semanaActualStr,
                     barra: barra,
                     responsable: responsable,
-                    producto: nombreProducto,
-                    inicial: parseFloat(inputInicial.value) || 0,
-                    final: parseFloat(inputFinal.value) || 0,
-                    diferencia: (parseFloat(inputInicial.value) || 0) - (parseFloat(inputFinal.value) || 0),
+                    producto: item.nombre,
+                    inicial: inicial,
+                    final: final,
+                    diferencia: inicial - final,
                     fecha_envio: new Date().toLocaleString('es-AR')
-                });
+                };
             });
 
             const URL_GOOGLE_SHEET = "https://script.google.com/macros/s/AKfycbycJG08ka_8BewGw3TxtwlRL1TZKz6BMP4jn2yY_PoWj8nVs8e4bbKWKDQCD5ecgymfVA/exec";
@@ -631,6 +688,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     body: JSON.stringify(registrosStock)
                 });
                 mostrarNotificacion("¡Planilla de stock enviada con éxito!", "exito");
+                localStorage.removeItem(CLAVE_STOCK_PROGRESO);
                 setTimeout(() => { window.location.reload(); }, 1500);
             } catch (err) {
                 mostrarNotificacion("Error al enviar los datos.", "error");
