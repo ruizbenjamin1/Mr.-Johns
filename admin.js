@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio"];
+    const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio", "Cocina"];
     const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbzNq6zFAAEj7TTqdz5A78ZRcPhb8I80DlCm_F0E05T1lZWzuEkJ1aeStZb1K1vWM3X_UQ/exec";
 
     // === CONTRASEÑA PARA VER LA TABLA DE PERSONAL REGISTRADO ===
