@@ -578,8 +578,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             contenedor.innerHTML += `
                 <tr>
                     <td class="text-start ps-3 text-light">${item.nombre}</td>
-                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-inicial" min="0" value="0"></td>
-                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-final" min="0" value="0"></td>
+                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-inicial" min="0" step="0.01" inputmode="decimal" value="0"></td>
+                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-final" min="0" step="0.01" inputmode="decimal" value="0"></td>
                 </tr>`;
         });
     }
