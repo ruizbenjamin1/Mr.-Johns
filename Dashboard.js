@@ -89,8 +89,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     // === 4. CÁLCULO DINÁMICO DE FECHA Y DÍA ACTUAL ===
+    // Usamos obtenerFechaOperativa() (definida en supabase_client.js) en vez de
+    // "new Date()" directo: el turno sigue siendo el de "anoche" hasta las 6 AM,
+    // así la tarjeta de "Convocado Hoy" no desaparece a mitad del turno.
     const diasSemanaNombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const hoyIndex = new Date().getDay();
+    const hoyIndex = obtenerFechaOperativa().getDay();
     const diaActualNombre = diasSemanaNombres[hoyIndex]; // Ejemplo: "Viernes" o "Sábado"
 
     const obtenerRangoSemanaActual = () => {
@@ -186,7 +189,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             tablaConvocadosBody.innerHTML = "";
 
             // Buscamos las convocatorias del usuario que coincidan tanto con su usuario como con el DÍA DE HOY
-            const normalizadorTexto = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+            const normalizadorTexto = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
             const diaHoyNorm = normalizadorTexto(diaActualNombre);
 
             const misConvocatoriasHoy = convocadosDB.filter(c => {

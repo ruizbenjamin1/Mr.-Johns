@@ -10,13 +10,13 @@
     --bg-card: #14141c;             /* Gris oscuro azulado para las tarjetas */
     --bg-input: #1b1b26;            /* Color para los campos de texto */
     --border-color: #262636;        /* Bordes ultra finos y sutiles */
-    
+
     /* Paleta de Colores de Acentos (Brillantes pero elegantes) */
     --oro-premium: #f39c12;         /* Un dorado ámbar corporativo */
     --oro-glow: rgba(243, 156, 18, 0.15);
     --cyan-barra: #00e5ff;         /* Cyan eléctrico para el jefe de barra */
     --cyan-glow: rgba(0, 229, 255, 0.15);
-    
+
     /* Estados */
     --success-pro: #00e676;
     --danger-pro: #ff1744;
@@ -107,6 +107,21 @@ body {
     box-shadow: 0 0 10px var(--oro-glow) !important;
 }
 
+/* Cuando un input/select va pegado a un ícono dentro de un "input-group" (como el
+   usuario/contraseña del login, o los buscadores con lupa), el lado que toca al
+   ícono tiene que quedar recto -si no, el border-radius de arriba (con !important)
+   le gana a Bootstrap y el input queda redondeado ahí también, "montándose"
+   visualmente sobre el recuadro del ícono. Asumimos que el ícono siempre va
+   primero (a la izquierda), que es como está armado en todo el sitio. */
+.input-group > .form-control,
+.input-group > .form-select {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+}
+.input-group > .input-group-text {
+    border-radius: 10px 0 0 10px !important;
+}
+
 /* Específico para el panel de barra cuando hace foco */
 .card-barra .form-control:focus, .card-barra .form-select:focus {
     border-color: var(--cyan-barra) !important;
@@ -132,9 +147,9 @@ body {
 }
 
 /* Resaltado especial del Sábado */
-.table-agenda .sabado-highlight th, 
+.table-agenda .sabado-highlight th,
 .table-agenda .sabado-highlight td {
-    background-color: #1f1b13 !important; 
+    background-color: #1f1b13 !important;
     border-left: none !important;
     border-right: none !important;
     color: var(--oro-premium) !important;
@@ -207,20 +222,20 @@ body.vh-100 {
 }
 
 /* Pasamos los textos aclaratorios grises que no se leían a un gris plata bien visible */
-.card-admin .text-muted, 
-.card-barra .text-muted, 
+.card-admin .text-muted,
+.card-barra .text-muted,
 .card-custom .text-muted,
 .card-admin p.small,
 .card-barra p.small,
 .card-custom p.small,
 label.form-label {
-    color: #cbd5e1 !important; 
+    color: #cbd5e1 !important;
     opacity: 1 !important;
 }
 
 /* 2. CONTRASTE DE ENCABEZADOS Y CELDAS EN TABLAS (Planillas, CRUDs y Agendas) */
-.table-agenda th, 
-.table-dark-custom th, 
+.table-agenda th,
+.table-dark-custom th,
 table.table thead th {
     background-color: #1e1e2f !important; /* Fondo de títulos un toque más claro */
     border-bottom: 2px solid #3f3f56 !important;
@@ -232,8 +247,8 @@ table.table thead th {
     font-weight: 700 !important;
 }
 
-.table-agenda td, 
-.table-dark-custom td, 
+.table-agenda td,
+.table-dark-custom td,
 table.table tbody td {
     background-color: #14141f !important; /* Forzamos el fondo oscuro de celda */
     border-bottom: 1px solid #2a2a3a !important;
@@ -252,7 +267,7 @@ table.table tbody td:first-child {
 }
 
 /* 3. RESALTADO PREMIUM DEL SÁBADO (Fila destacada en el Dashboard) */
-.table-agenda .sabado-highlight th, 
+.table-agenda .sabado-highlight th,
 .table-agenda .sabado-highlight td {
     background-color: #2c2414 !important; /* Fondo ámbar oscuro elegante */
     color: #ffffff !important;
@@ -262,8 +277,8 @@ table.table tbody td:first-child {
 }
 
 /* 4. MEJORA EN INPUTS DE TEXTO, DESPLEGABLES Y PLACEHOLDERS */
-.card-admin .form-control, 
-.card-barra .form-control, 
+.card-admin .form-control,
+.card-barra .form-control,
 .card-custom .form-control,
 .card-admin .form-select,
 .card-barra .form-select {
@@ -275,7 +290,7 @@ table.table tbody td:first-child {
 .card-admin .form-control::placeholder,
 .card-barra .form-control::placeholder,
 .card-custom .form-control::placeholder {
-    color: #94a3b8 !important; 
+    color: #94a3b8 !important;
     opacity: 1 !important;
 }
 
