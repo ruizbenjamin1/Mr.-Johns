@@ -8,8 +8,8 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
             position: "right",
             stopOnFocus: true,
             style: {
-                background: tipo === "exito" 
-                    ? "linear-gradient(to right, #00b09b, #96c93d)" 
+                background: tipo === "exito"
+                    ? "linear-gradient(to right, #00b09b, #96c93d)"
                     : "linear-gradient(to right, #ff5f6d, #ffc371)",
                 borderRadius: "8px",
                 fontWeight: "bold",
@@ -26,10 +26,10 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
 const semanaActualStr = obtenerLunesSemanaActual();
 
 document.addEventListener("DOMContentLoaded", async () => {
-    
+
     // === 1. IDENTIFICACIÓN DE USUARIO Y CONTROL DE SEGURIDAD ===
     const usuarioActivo = sessionStorage.getItem("usuarioLogueado");
-    const rolUsuario = sessionStorage.getItem("rolUsuario"); 
+    const rolUsuario = sessionStorage.getItem("rolUsuario");
 
     if (!usuarioActivo) {
         mostrarNotificacion("Acceso denegado. Por favor, iniciá sesión.", "error");
@@ -83,14 +83,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     Object.keys(diasIds).forEach(dia => {
         const checkbox = document.getElementById(diasIds[dia]);
-        if (checkbox) { 
-            checkbox.addEventListener("change", actualizarBadgesVisuales); 
+        if (checkbox) {
+            checkbox.addEventListener("change", actualizarBadgesVisuales);
         }
     });
 
     // === 4. CÁLCULO DINÁMICO DE FECHA Y DÍA ACTUAL ===
     const diasSemanaNombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-    const hoyIndex = new Date().getDay(); 
+    const hoyIndex = new Date().getDay();
     const diaActualNombre = diasSemanaNombres[hoyIndex]; // Ejemplo: "Viernes" o "Sábado"
 
     const obtenerRangoSemanaActual = () => {
@@ -98,7 +98,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const diaSemana = hoy.getDay();
         const diferenciaLunes = hoy.getDate() - diaSemana + (diaSemana === 0 ? -6 : 1);
         const lunes = new Date(hoy.setDate(diferenciaLunes));
-        
+
         const domingo = new Date(lunes);
         domingo.setDate(lunes.getDate() + 6);
 
@@ -136,8 +136,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Mostrar Badge del Usuario Activo
         const usuarioLimpio = usuarioActivo.toLowerCase().trim();
         const datosEsteUsuario = usuariosDB.find(u => (u.user_name || "").toLowerCase().trim() === usuarioLimpio);
-        const nombreCompleto = datosEsteUsuario && datosEsteUsuario.nombre_real 
-            ? datosEsteUsuario.nombre_real 
+        const nombreCompleto = datosEsteUsuario && datosEsteUsuario.nombre_real
+            ? datosEsteUsuario.nombre_real
             : usuarioActivo;
 
         const badgeRol = document.getElementById("user-role-badge");
@@ -184,9 +184,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (seccionPlanilla && tablaConvocadosBody) {
             tablaConvocadosBody.innerHTML = "";
-            
+
             // Buscamos las convocatorias del usuario que coincidan tanto con su usuario como con el DÍA DE HOY
-            const normalizadorTexto = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+            const normalizadorTexto = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
             const diaHoyNorm = normalizadorTexto(diaActualNombre);
 
             const misConvocatoriasHoy = convocadosDB.filter(c => {
@@ -197,7 +197,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             if (misConvocatoriasHoy.length > 0 && datosEsteUsuario) {
                 seccionPlanilla.classList.remove("d-none");
-                
+
                 const tablaHeader = seccionPlanilla.querySelector("table thead tr");
                 const rolReal = (datosEsteUsuario.rol || "").toLowerCase();
                 const esBartender = rolReal.includes("bar");
@@ -216,8 +216,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     const sectorAsignado = registroConvocado.sector || "Principal";
                     const diaAsignado = registroConvocado.dia || diaActualNombre;
 
-                    const estiloBadge = esBartender 
-                        ? "border-info text-info" 
+                    const estiloBadge = esBartender
+                        ? "border-info text-info"
                         : "border-warning text-warning";
 
                     const filaHTML = `
@@ -445,9 +445,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         { categoria: "AGUAS", nombre: "Agua mineral Benedictino c/gas" }
     ];
 
-    // === PERSISTENCIA DEL STOCK EN PROGRESO (sobrevive a un refresh, hasta que se exporte) ===
+    // === STOCK: ENVÍO EN DOS ETAPAS (INICIAL / FINAL), COMBINADAS EN UNA MISMA FILA EN SHEETS ===
+    const URL_GOOGLE_SHEET = "https://script.google.com/macros/s/AKfycbzc5qfiy2_1ESfoubNWNW8vWBNtk0LO9_HaFyI4bmJfeJFXHF8iBlBd4l1ewpRVq_Pt/exec";
     const CLAVE_STOCK_PROGRESO = "stockPlanillaEnProgreso";
+    const COOLDOWN_INICIAL_MS = 5 * 60 * 1000; // 5 minutos
     const valoresStockManual = {};
+    const estadoStockEnviosLocal = { inicialEnviado: false, timestampInicial: null };
+    let intervaloCooldownInicial = null;
 
     function cargarProgresoStockGuardado() {
         try {
@@ -465,6 +469,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 const inputResponsable = document.getElementById("input-nombre-stock");
                 if (inputResponsable) inputResponsable.value = datos.responsable;
             }
+            if (datos && typeof datos.inicialEnviado === "boolean") {
+                estadoStockEnviosLocal.inicialEnviado = datos.inicialEnviado;
+                estadoStockEnviosLocal.timestampInicial = datos.timestampInicial || null;
+            }
         } catch (err) {
             console.error("Error al cargar el progreso de stock guardado:", err);
         }
@@ -476,9 +484,59 @@ document.addEventListener("DOMContentLoaded", async () => {
         const datos = {
             valores: valoresStockManual,
             barra: selectBarra ? selectBarra.value : "",
-            responsable: inputResponsable ? inputResponsable.value : ""
+            responsable: inputResponsable ? inputResponsable.value : "",
+            inicialEnviado: estadoStockEnviosLocal.inicialEnviado,
+            timestampInicial: estadoStockEnviosLocal.timestampInicial
         };
         localStorage.setItem(CLAVE_STOCK_PROGRESO, JSON.stringify(datos));
+    }
+
+    // Habilita/deshabilita los botones de Inicial y Final, y muestra la cuenta
+    // regresiva de 5 minutos después de mandar el Inicial (para evitar reenvíos
+    // seguidos que generen líneas de más en la planilla).
+    function actualizarEstadoBotonesStock() {
+        const btnInicial = document.getElementById("btn-enviar-inicial");
+        const btnFinal = document.getElementById("btn-enviar-final");
+        const estadoTexto = document.getElementById("estado-planilla-stock");
+        if (!btnInicial || !btnFinal || !estadoTexto) return;
+
+        if (intervaloCooldownInicial) {
+            clearInterval(intervaloCooldownInicial);
+            intervaloCooldownInicial = null;
+        }
+
+        if (!estadoStockEnviosLocal.inicialEnviado) {
+            btnInicial.disabled = false;
+            btnFinal.disabled = true;
+            estadoTexto.innerText = "Cargá el stock inicial y enviá primero el Inicial. El botón Final se habilita después.";
+            return;
+        }
+
+        // Ya se envió el Inicial: el Final queda disponible para cuando termine el turno
+        btnFinal.disabled = false;
+
+        const actualizarCooldown = () => {
+            const transcurrido = Date.now() - (estadoStockEnviosLocal.timestampInicial || 0);
+            const restante = COOLDOWN_INICIAL_MS - transcurrido;
+
+            if (restante <= 0) {
+                btnInicial.disabled = false;
+                estadoTexto.innerText = "Inicial ya enviado. Podés reenviarlo si te equivocaste, o cargar el Final cuando termine el turno.";
+                if (intervaloCooldownInicial) {
+                    clearInterval(intervaloCooldownInicial);
+                    intervaloCooldownInicial = null;
+                }
+                return;
+            }
+
+            btnInicial.disabled = true;
+            const minutos = Math.floor(restante / 60000);
+            const segundos = Math.floor((restante % 60000) / 1000).toString().padStart(2, "0");
+            estadoTexto.innerText = `Inicial enviado. Podés reenviarlo en ${minutos}:${segundos} si te equivocaste, o cargar el Final cuando termine el turno.`;
+        };
+
+        actualizarCooldown();
+        intervaloCooldownInicial = setInterval(actualizarCooldown, 1000);
     }
 
     if (rolUsuario === "bartender" || rolUsuario === "barman" || rolUsuario === "administrador_barra" || rolUsuario === "admin_barra") {
@@ -486,7 +544,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const tabBebidaElement = document.getElementById("bebida-tab");
         const tabStockLi = document.getElementById("tab-item-stock");
         const tabNotasLi = document.getElementById("tab-item-notas");
-        
+
         if (tabComidaElement && tabComidaElement.parentElement) {
             tabComidaElement.parentElement.style.display = "none";
         }
@@ -511,6 +569,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         cargarProgresoStockGuardado();
         renderizarStock(listaStockGlobal);
+        actualizarEstadoBotonesStock();
     } else {
         renderizarComidas(listaComidasGlobal);
         configurarBlocDeNotas(usuarioActivo);
@@ -649,10 +708,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const inputResponsableEl = document.getElementById("input-nombre-stock");
     if (inputResponsableEl) inputResponsableEl.addEventListener("input", guardarProgresoStockEnStorage);
 
-    const formPlanillaStock = document.getElementById("formPlanillaStock");
-    if (formPlanillaStock) {
-        formPlanillaStock.addEventListener("submit", async (e) => {
-            e.preventDefault();
+    // --- Botón "ENVIAR INICIAL": manda solo los valores iniciales a Sheets ---
+    // (crea la fila en la planilla) y arranca el enfriamiento de 5 minutos.
+    const btnEnviarInicial = document.getElementById("btn-enviar-inicial");
+    if (btnEnviarInicial) {
+        btnEnviarInicial.addEventListener("click", async () => {
             const barra = document.getElementById("select-barra").value;
             const responsable = document.getElementById("input-nombre-stock").value.trim();
 
@@ -661,9 +721,58 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return;
             }
 
-            // Armamos la planilla completa con TODOS los productos del stock,
-            // así queda lista para exportar apenas cargan la sección (sin buscador de por medio).
-            const registrosStock = listaStockGlobal.map(item => {
+            const registrosInicial = listaStockGlobal.map(item => {
+                const guardado = valoresStockManual[item.nombre] || { inicial: "0", final: "0" };
+                const inicial = parseFloat(guardado.inicial) || 0;
+                return {
+                    semana: semanaActualStr,
+                    barra: barra,
+                    responsable: responsable,
+                    producto: item.nombre,
+                    inicial: inicial,
+                    fecha_envio: new Date().toLocaleString('es-AR')
+                };
+            });
+
+            btnEnviarInicial.disabled = true;
+            mostrarNotificacion("Enviando Inicial a Google Sheets...", "exito");
+
+            try {
+                await fetch(URL_GOOGLE_SHEET, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ modo: "inicial", filas: registrosInicial })
+                });
+
+                estadoStockEnviosLocal.inicialEnviado = true;
+                estadoStockEnviosLocal.timestampInicial = Date.now();
+                guardarProgresoStockEnStorage();
+
+                mostrarNotificacion("¡Inicial enviado! Ya podés cargar el Final cuando termine el turno.", "exito");
+                actualizarEstadoBotonesStock();
+            } catch (err) {
+                mostrarNotificacion("Error al enviar el Inicial.", "error");
+                btnEnviarInicial.disabled = false;
+            }
+        });
+    }
+
+    // --- Botón "ENVIAR FINAL": manda los valores finales (+ diferencia) a Sheets. ---
+    // El Apps Script busca la fila que ya se creó con el Inicial y la completa ahí,
+    // en vez de crear una fila nueva.
+    const btnEnviarFinal = document.getElementById("btn-enviar-final");
+    if (btnEnviarFinal) {
+        btnEnviarFinal.addEventListener("click", async () => {
+            const barra = document.getElementById("select-barra").value;
+            const responsable = document.getElementById("input-nombre-stock").value.trim();
+
+            if (!barra || !responsable) {
+                mostrarNotificacion("Por favor, completá la barra y el responsable.", "error");
+                return;
+            }
+
+            const registrosFinal = listaStockGlobal.map(item => {
                 const guardado = valoresStockManual[item.nombre] || { inicial: "0", final: "0" };
                 const inicial = parseFloat(guardado.inicial) || 0;
                 const final = parseFloat(guardado.final) || 0;
@@ -672,26 +781,29 @@ document.addEventListener("DOMContentLoaded", async () => {
                     barra: barra,
                     responsable: responsable,
                     producto: item.nombre,
-                    inicial: inicial,
                     final: final,
                     diferencia: inicial - final,
                     fecha_envio: new Date().toLocaleString('es-AR')
                 };
             });
 
-            const URL_GOOGLE_SHEET = "https://script.google.com/macros/s/AKfycbycJG08ka_8BewGw3TxtwlRL1TZKz6BMP4jn2yY_PoWj8nVs8e4bbKWKDQCD5ecgymfVA/exec";
+            btnEnviarFinal.disabled = true;
+            mostrarNotificacion("Enviando Final a Google Sheets...", "exito");
+
             try {
                 await fetch(URL_GOOGLE_SHEET, {
                     method: "POST",
                     mode: "no-cors",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(registrosStock)
+                    body: JSON.stringify({ modo: "final", filas: registrosFinal })
                 });
-                mostrarNotificacion("¡Planilla de stock enviada con éxito!", "exito");
+
+                mostrarNotificacion("¡Planilla de stock cerrada con éxito!", "exito");
                 localStorage.removeItem(CLAVE_STOCK_PROGRESO);
                 setTimeout(() => { window.location.reload(); }, 1500);
             } catch (err) {
-                mostrarNotificacion("Error al enviar los datos.", "error");
+                mostrarNotificacion("Error al enviar el Final.", "error");
+                btnEnviarFinal.disabled = false;
             }
         });
     }
