@@ -27,6 +27,20 @@
 
     <div class="container mt-4 px-3" style="padding-bottom: 60px;">
         
+        <!-- BLOQUE 0: VISTA SEMANAL (los 7 días de un vistazo, sin ir cambiando el selector) -->
+        <div class="card card-barra p-3 mb-4 rounded-3 shadow-sm" style="background-color: #171722; border: 1px solid #2a2a3a;">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="fw-bold mb-0 text-light"><i class="bi bi-calendar-week-fill me-2"></i>Vista Semanal</h5>
+            </div>
+            <p class="text-muted small mb-3">Tocá cualquier celda para saltar a ese día en el panel de gestión de abajo.</p>
+            <div class="d-flex gap-3 flex-wrap mb-3 small">
+                <span><span class="badge bg-success bg-opacity-25 text-success border border-success">Barra</span> Convocado</span>
+                <span><span class="badge bg-warning bg-opacity-25 text-warning border border-warning">Disponible</span> Disponible, sin convocar</span>
+                <span><span class="badge bg-secondary bg-opacity-25 text-secondary">—</span> Sin disponibilidad</span>
+            </div>
+            <div id="grilla-semanal-bartenders"></div>
+        </div>
+
         <!-- BLOQUE 1: PLANILLA Y CONVOCATORIA DE BARTENDERS POR DÍA -->
         <div class="card card-barra p-3 mb-4 rounded-3 shadow-sm" style="background-color: #171722; border: 1px solid #2a2a3a;">
             <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
@@ -149,10 +163,11 @@
         </div>
 
         <!-- BOTÓN EXPORTAR CENTRADO -->
-        <div class="text-center my-4 py-2">
+        <div class="d-flex flex-column align-items-center my-4 py-2 gap-2">
             <button class="btn btn-info text-dark fw-bold px-4 py-2 shadow" onclick="exportarBarraA_GoogleSheets()">
                 <i class="bi bi-file-earmark-excel me-2"></i>Exportar
             </button>
+            <div id="respaldo-pendiente-barras" style="width: 100%; max-width: 500px;"></div>
         </div>
 
     </div>

@@ -22,6 +22,12 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
     }
 }
 
+// === SEMANA ACTUAL (LUNES EN FORMATO YYYY-MM-DD) ===
+// Todas las convocatorias se etiquetan con esto para que una convocatoria de
+// una semana vieja nunca se mezcle con la actual (antes solo se filtraba por
+// día, y "Viernes" de hace un mes quedaba pegado con el "Viernes" de hoy).
+const semanaActualStr = obtenerLunesSemanaActual();
+
 document.addEventListener("DOMContentLoaded", async () => {
 
     // VERIFICACIÓN DE SEGURIDAD
@@ -36,6 +42,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio", "Cocina"];
     const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
+    const CLAVE_RESPALDO_EXPORT_MOZOS = "respaldoExportMozos";
+    verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_MOZOS, 'respaldo-pendiente-mozos', URL_WEBHOOK_SHEETS);
 
     // === CONTRASEÑA PARA VER LA TABLA DE PERSONAL REGISTRADO ===
     // Cambiá esta clave por la que quieras usar.
@@ -226,7 +234,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 p_token: obtenerTokenSesion(),
                 p_user_name: username,
                 p_dia: diaSeleccionado,
-                p_accion: estaConvocado ? 'quitar' : 'agregar'
+                p_accion: estaConvocado ? 'quitar' : 'agregar',
+                p_semana_lunes: semanaActualStr
             });
 
             if (error) throw error;
@@ -245,7 +254,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 p_token: obtenerTokenSesion(),
                 p_user_name: username,
                 p_dia: diaSeleccionado,
-                p_sector: sectorVal
+                p_sector: sectorVal,
+                p_semana_lunes: semanaActualStr
             });
 
             if (error) throw error;
@@ -262,7 +272,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 p_token: obtenerTokenSesion(),
                 p_user_name: username,
                 p_dia: diaSeleccionado,
-                p_monto: Number(montoVal) || 0
+                p_monto: Number(montoVal) || 0,
+                p_semana_lunes: semanaActualStr
             });
 
             if (error) throw error;
@@ -286,21 +297,31 @@ document.addEventListener("DOMContentLoaded", async () => {
             const hoy = new Date();
             const fechaDiariaExacta = hoy.toISOString().split('T')[0];
 
-            const { data: convocados, error } = await _supabase
-                .from('convocados')
-                .select(`user_name, sector, propina_individual, semana, dia, usuarios (nombre_real, rol)`);
+            // Se consulta por separado (ya no se puede hacer join embebido contra
+            // "usuarios", que quedó bloqueada del lado del cliente) y se cruza acá.
+            // Filtrado por semana actual: evita arrastrar convocatorias viejas del
+            // mismo día (ej. "Viernes" de hace un mes) a la exportación de hoy.
+            const [resConvocados, resUsuarios] = await Promise.all([
+                _supabase.from('convocados').select('user_name, sector, propina_individual, dia').eq('semana_lunes', semanaActualStr),
+                _supabase.from('usuarios_public').select('user_name, nombre_real, rol')
+            ]);
 
-            if (error) throw error;
+            if (resConvocados.error) throw resConvocados.error;
+            if (resUsuarios.error) throw resUsuarios.error;
+
+            const usuariosDBExport = resUsuarios.data || [];
 
             const normalizarTexto = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "").trim();
             const diaActualNorm = normalizarTexto(diaSeleccionado);
 
             // Solo se exportan MOZOS (los bartenders se gestionan y exportan desde el panel de Jefe de Barra)
-            const personalConvocado = (convocados || []).filter(c => {
-                const esMozo = c.usuarios && c.usuarios.rol === 'mozo';
-                const diaConvocadoNorm = normalizarTexto(c.dia || 'Sábado');
-                return esMozo && (diaConvocadoNorm === diaActualNorm);
-            });
+            const personalConvocado = (resConvocados.data || [])
+                .map(c => ({ ...c, usuario: usuariosDBExport.find(u => u.user_name === c.user_name) }))
+                .filter(c => {
+                    const esMozo = c.usuario && c.usuario.rol === 'mozo';
+                    const diaConvocadoNorm = normalizarTexto(c.dia || 'Sábado');
+                    return esMozo && (diaConvocadoNorm === diaActualNorm);
+                });
 
             if (personalConvocado.length === 0) {
                 mostrarNotificacion(`No hay mozos convocados para el día ${diaSeleccionado}.`, "error");
@@ -309,23 +330,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const filasProcesadas = personalConvocado.map(item => ({
                 semana: fechaDiariaExacta,
-                usuario: item.usuarios.nombre_real || item.user_name,
-                rol: `${item.usuarios.rol.charAt(0).toUpperCase() + item.usuarios.rol.slice(1)} (${diaSeleccionado})`,
+                usuario: item.usuario.nombre_real || item.user_name,
+                rol: `${item.usuario.rol.charAt(0).toUpperCase() + item.usuario.rol.slice(1)} (${diaSeleccionado})`,
                 sector: item.sector || 'Principal',
                 propina: item.propina_individual || 0
             }));
 
             mostrarNotificacion("Enviando Reporte a Google Sheets...", "exito");
-            await fetch(URL_WEBHOOK_SHEETS, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tipo: "staff", filas: filasProcesadas })
-            });
-            mostrarNotificacion("¡Reporte exportado con éxito!", "exito");
+            await enviarConRespaldo(URL_WEBHOOK_SHEETS, { tipo: "staff", filas: filasProcesadas }, CLAVE_RESPALDO_EXPORT_MOZOS);
+            mostrarNotificacion("Enviado. Revisá la planilla para confirmar que llegó.", "exito");
+            verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_MOZOS, 'respaldo-pendiente-mozos', URL_WEBHOOK_SHEETS);
         } catch (err) {
             console.error("Error al exportar:", err);
-            mostrarNotificacion("Ocurrió un error al exportar los datos.", "error");
+            mostrarNotificacion("Ocurrió un error al exportar los datos. Se guardó un respaldo para reintentar.", "error");
+            verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_MOZOS, 'respaldo-pendiente-mozos', URL_WEBHOOK_SHEETS);
         }
     };
 
@@ -336,7 +354,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 // tabla real "usuarios" ya no es accesible directo desde el navegador.
                 _supabase.from('usuarios_public').select('user_name, nombre_real, rol'),
                 _supabase.from('agendas').select('*'),
-                _supabase.from('convocados').select('*')
+                // Filtrado por semana actual: evita que una convocatoria vieja del
+                // mismo día (ej. "Viernes" de hace un mes) se mezcle con la de hoy.
+                _supabase.from('convocados').select('*').eq('semana_lunes', semanaActualStr)
             ]);
 
             if (resUsuarios.error) throw resUsuarios.error;
@@ -463,6 +483,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (contenedorEquipoFinal && cuentaConvocados === 0) {
                 contenedorEquipoFinal.innerHTML = `<p class="text-muted small text-center my-2">No seleccionaste personal para trabajar el ${diaSeleccionado} todavía.</p>`;
             }
+
+            renderizarGrillaSemanal(usuariosDB, agendasDB, convocadosDB, (rol) => rol === 'mozo', 'grilla-semanal-mozos');
         } catch (err) {
             console.error("Error al cargar panel de Admin:", err);
             mostrarNotificacion("No se pudieron cargar los datos del panel. Reintentá recargando la página.", "error");

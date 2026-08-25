@@ -22,6 +22,12 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
     }
 }
 
+// === SEMANA ACTUAL (LUNES EN FORMATO YYYY-MM-DD) ===
+// Todas las convocatorias se etiquetan con esto para que una convocatoria de
+// una semana vieja nunca se mezcle con la actual (antes solo se filtraba por
+// día, y "Viernes" de hace un mes quedaba pegado con el "Viernes" de hoy).
+const semanaActualStr = obtenerLunesSemanaActual();
+
 document.addEventListener("DOMContentLoaded", async () => {
 
     // === 1. VERIFICACIÓN DE SEGURIDAD ===
@@ -36,6 +42,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const sectoresBarra = ["Vip", "Cantina", "Altillo", "Principal", "Patio", "Evento"];
     const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
+    const CLAVE_RESPALDO_EXPORT_BARRAS = "respaldoExportBarras";
+    verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_BARRAS, 'respaldo-pendiente-barras', URL_WEBHOOK_SHEETS);
 
     // === CONTRASEÑA PARA VER LA TABLA DE BARTENDERS REGISTRADOS ===
     // Cambiá esta clave por la que quieras usar.
@@ -184,7 +192,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 p_token: obtenerTokenSesion(),
                 p_user_name: username,
                 p_dia: diaSeleccionado,
-                p_accion: estaConvocado ? 'quitar' : 'agregar'
+                p_accion: estaConvocado ? 'quitar' : 'agregar',
+                p_semana_lunes: semanaActualStr
             });
 
             if (error) throw error;
@@ -203,7 +212,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 p_token: obtenerTokenSesion(),
                 p_user_name: username,
                 p_dia: diaSeleccionado,
-                p_sector: sectorVal
+                p_sector: sectorVal,
+                p_semana_lunes: semanaActualStr
             });
 
             if (error) throw error;
@@ -254,7 +264,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const fechaDiariaExacta = hoy.toISOString().split('T')[0];
 
             const [resConvocados, resUsuarios] = await Promise.all([
-                _supabase.from('convocados').select('*'),
+                // Filtrado por semana actual: evita arrastrar convocatorias viejas
+                // del mismo día (ej. "Viernes" de hace un mes) a la exportación de hoy.
+                _supabase.from('convocados').select('*').eq('semana_lunes', semanaActualStr),
                 _supabase.from('usuarios_public').select('user_name, nombre_real, rol')
             ]);
 
@@ -296,15 +308,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             mostrarNotificacion("Enviando reporte a Google Sheets...", "exito");
 
-            await fetch(URL_WEBHOOK_SHEETS, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    tipo: "barras",
-                    filas: filasProcesadas
-                })
-            });
+            await enviarConRespaldo(URL_WEBHOOK_SHEETS, { tipo: "barras", filas: filasProcesadas }, CLAVE_RESPALDO_EXPORT_BARRAS);
+            verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_BARRAS, 'respaldo-pendiente-barras', URL_WEBHOOK_SHEETS);
 
             // Una vez exportado, las propinas vuelven a $0 (en pantalla y en la base)
             for (const fila of filasTabla) {
@@ -317,11 +322,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
-            mostrarNotificacion("¡Reporte de Barras exportado con éxito! Las propinas se reiniciaron a $0.", "exito");
+            mostrarNotificacion("Enviado. Revisá la planilla para confirmar que llegó. Las propinas se reiniciaron a $0.", "exito");
 
         } catch (err) {
             console.error("Error al exportar barras:", err);
-            mostrarNotificacion("Ocurrió un error al exportar las barras.", "error");
+            mostrarNotificacion("Ocurrió un error al exportar las barras. Se guardó un respaldo para reintentar.", "error");
+            verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_BARRAS, 'respaldo-pendiente-barras', URL_WEBHOOK_SHEETS);
         }
     };
 
@@ -331,7 +337,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
                 _supabase.from('usuarios_public').select('user_name, nombre_real, rol'),
                 _supabase.from('agendas').select('*'),
-                _supabase.from('convocados').select('*')
+                // Filtrado por semana actual: evita que una convocatoria vieja del
+                // mismo día se mezcle con la de hoy.
+                _supabase.from('convocados').select('*').eq('semana_lunes', semanaActualStr)
             ]);
 
             if (resUsuarios.error) throw resUsuarios.error;
@@ -374,23 +382,25 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
 
-            // RENDER DE BARTENDERS: CONVOCADOS, DISPONIBLES Y CRUD (SOPORTA 'bartender' Y 'admin_barra')
+            // RENDER DE BARTENDERS: CONVOCADOS Y DISPONIBLES (bartender + admin_barra,
+            // como antes) VS. CRUD DE CUENTAS (solo bartender: el backend ya no deja
+            // que un Jefe de Barra cree/edite/elimine cuentas fuera de su equipo).
             usuariosDB.forEach(usuario => {
                 const rolLimpio = (usuario.rol || "").toLowerCase().trim();
                 const esBartender = rolLimpio === "bartender" || rolLimpio === "admin_barra";
+                const esGestionableCRUD = rolLimpio === "bartender";
 
-                if (esBartender && tablaCRUD) {
+                if (esGestionableCRUD && tablaCRUD) {
                     tablaCRUD.innerHTML += `
                         <tr>
                             <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-bname-${usuario.user_name}" value="${escaparHTML(usuario.nombre_real || '')}"></td>
                             <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center fw-bold text-info" id="edit-buser-${usuario.user_name}" value="${escaparHTML(usuario.user_name)}"></td>
                             <td><input type="password" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-bpass-${usuario.user_name}" placeholder="Dejar vacío para no cambiar" value="" autocomplete="new-password"></td>
                             <td>
-                                <select class="form-select form-select-sm bg-dark text-light border-secondary text-center" id="edit-brole-${usuario.user_name}">
-                                    <option value="bartender" ${usuario.rol === 'bartender' ? 'selected' : ''}>Bartender</option>
-                                    <option value="admin_barra" ${usuario.rol === 'admin_barra' ? 'selected' : ''}>Jefe de Barra</option>
-                                    <option value="mozo" ${usuario.rol === 'mozo' ? 'selected' : ''}>Mozo</option>
+                                <select class="form-select form-select-sm bg-dark text-light border-secondary text-center" id="edit-brole-${usuario.user_name}" disabled>
+                                    <option value="bartender" selected>Bartender</option>
                                 </select>
+                                <small class="text-muted d-block mt-1">Para pasar a Jefe de Barra, contactá a un administrador.</small>
                             </td>
                             <td>
                                 <div class="d-flex gap-2 justify-content-center">
@@ -468,6 +478,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (contenedorEquipoFinal && cuentaConvocados === 0) {
                 contenedorEquipoFinal.innerHTML = `<p class="text-muted small text-center my-2">No hay bartenders convocados para el ${diaSeleccionado}.</p>`;
             }
+
+            renderizarGrillaSemanal(usuariosDB, agendasDB, convocadosDB, (rol) => rol === 'bartender' || rol === 'admin_barra', 'grilla-semanal-bartenders');
 
         } catch (err) {
             console.error("Error al cargar panel de Jefe de Barra:", err);

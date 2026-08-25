@@ -111,3 +111,141 @@ function estaDisponibilidadVigente(diaClave, fechaActualizacion) {
     const semanaActual = obtenerLunesSemanaActual();
     return semanaGuardada === semanaActual;
 }
+
+// === VISTA SEMANAL (grilla compartida por admin.html y jefe_barra.html) ===
+// Antes había que ir cambiando el selector de día uno por uno para ver el
+// panorama completo de la semana. Esta grilla usa los mismos datos que ya se
+// cargan para el panel de día único (no dispara ninguna consulta nueva) y
+// muestra, de un vistazo, quién está disponible/convocado cada día.
+const diasSemanaDisplay = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+function renderizarGrillaSemanal(usuariosDB, agendasDB, convocadosDB, filtroRol, contenedorId) {
+    const contenedor = document.getElementById(contenedorId);
+    if (!contenedor) return;
+
+    const personal = usuariosDB.filter(u => filtroRol(u.rol));
+    if (personal.length === 0) {
+        contenedor.innerHTML = `<p class="text-muted small text-center my-2 mb-0">Sin personal para mostrar.</p>`;
+        return;
+    }
+
+    let filasHTML = "";
+    personal.forEach(usuario => {
+        const agendaUsuario = agendasDB.find(a => a.user_name === usuario.user_name);
+
+        let celdasHTML = "";
+        diasSemanaDisplay.forEach(diaLabel => {
+            const claveDia = normalizarDiaClave(diaLabel);
+            const disponible = agendaUsuario
+                && agendaUsuario[claveDia] === true
+                && estaDisponibilidadVigente(claveDia, agendaUsuario.updated_at);
+            const convocado = convocadosDB.find(c => c.user_name === usuario.user_name && (c.dia === diaLabel || (!c.dia && diaLabel === 'Sábado')));
+
+            let claseBadge = "bg-secondary bg-opacity-25 text-secondary";
+            let texto = "—";
+            if (convocado) {
+                claseBadge = "bg-success bg-opacity-25 text-success border border-success";
+                texto = convocado.sector || "Convocado";
+            } else if (disponible) {
+                claseBadge = "bg-warning bg-opacity-25 text-warning border border-warning";
+                texto = "Disponible";
+            }
+
+            celdasHTML += `
+                <td class="text-center" style="cursor:pointer;" onclick="seleccionarDiaDesdeGrilla('${diaLabel}')" title="Ir a ${diaLabel}">
+                    <span class="badge ${claseBadge} small">${texto}</span>
+                </td>`;
+        });
+
+        filasHTML += `
+            <tr>
+                <td class="text-start ps-2 fw-bold text-light">${escaparHTML(usuario.nombre_real || usuario.user_name)}</td>
+                ${celdasHTML}
+            </tr>`;
+    });
+
+    contenedor.innerHTML = `
+        <div class="table-responsive rounded-3 border border-secondary">
+            <table class="table table-dark-custom align-middle text-center mb-0" style="font-size: 0.8rem;">
+                <thead>
+                    <tr>
+                        <th class="text-start ps-2">Personal</th>
+                        ${diasSemanaDisplay.map(d => `<th>${d.slice(0, 3)}</th>`).join("")}
+                    </tr>
+                </thead>
+                <tbody>${filasHTML}</tbody>
+            </table>
+        </div>`;
+}
+
+// Click en una celda de la grilla: salta el selector de día principal a ese
+// día y hace scroll al panel de gestión para actuar (convocar, asignar sector, etc).
+function seleccionarDiaDesdeGrilla(dia) {
+    const selectDia = document.getElementById("select-dia-gestion");
+    if (selectDia) {
+        selectDia.value = dia;
+        selectDia.dispatchEvent(new Event("change"));
+    }
+    const ancla = document.getElementById("equipo-convocado-final") || document.getElementById("equipo-barra-final");
+    if (ancla) ancla.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+window.seleccionarDiaDesdeGrilla = seleccionarDiaDesdeGrilla;
+
+// === RESPALDO DE ENVÍOS A GOOGLE SHEETS (los webhooks usan mode:"no-cors") ===
+// Con "no-cors" el navegador NUNCA puede leer si Google Sheets realmente
+// recibió y proceso el POST -es una limitación del lado del Apps Script
+// externo, no algo que se pueda arreglar desde acá-. Lo que sí podemos
+// garantizar es que, si el fetch falla de verdad (sin internet, servidor
+// caído), el envío no se pierda en silencio: se guarda en localStorage hasta
+// que se reintenta con éxito.
+function enviarConRespaldo(url, payload, claveRespaldo) {
+    localStorage.setItem(claveRespaldo, JSON.stringify({ payload, fecha: new Date().toISOString() }));
+    return fetch(url, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(() => {
+        localStorage.removeItem(claveRespaldo);
+    });
+}
+
+function obtenerUltimoIntentoFallido(claveRespaldo) {
+    try {
+        const guardado = localStorage.getItem(claveRespaldo);
+        return guardado ? JSON.parse(guardado) : null;
+    } catch (err) {
+        return null;
+    }
+}
+
+// Muestra (o esconde) el aviso de "envío no confirmado" con botón de reintentar.
+// Se llama al cargar la página y de nuevo después de cada intento de envío.
+function verificarEnvioPendiente(claveRespaldo, contenedorId, urlDestino) {
+    const contenedor = document.getElementById(contenedorId);
+    if (!contenedor) return;
+
+    const pendiente = obtenerUltimoIntentoFallido(claveRespaldo);
+    if (!pendiente) {
+        contenedor.innerHTML = "";
+        return;
+    }
+
+    const fechaTexto = new Date(pendiente.fecha).toLocaleString('es-AR');
+    const idBoton = `btn-reintentar-${claveRespaldo}`;
+    contenedor.innerHTML = `
+        <div class="alert alert-warning d-flex flex-wrap justify-content-between align-items-center py-2 px-3 mt-2 mb-0 small">
+            <span><i class="bi bi-exclamation-triangle-fill me-1"></i>Un envío del ${fechaTexto} no se pudo confirmar.</span>
+            <button type="button" class="btn btn-sm btn-warning fw-bold" id="${idBoton}">Reintentar envío</button>
+        </div>`;
+
+    document.getElementById(idBoton).addEventListener("click", async () => {
+        try {
+            await enviarConRespaldo(urlDestino, pendiente.payload, claveRespaldo);
+            mostrarNotificacion("Reenviado. Revisá la planilla para confirmar que llegó.", "exito");
+        } catch (err) {
+            mostrarNotificacion("Sigue sin poder enviarse. Revisá la conexión.", "error");
+        }
+        verificarEnvioPendiente(claveRespaldo, contenedorId, urlDestino);
+    });
+}

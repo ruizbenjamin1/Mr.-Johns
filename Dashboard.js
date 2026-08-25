@@ -126,7 +126,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     try {
         const [resUsuarios, resConvocados, resAgendaPropia] = await Promise.all([
             _supabase.from('usuarios_public').select('*'),
-            _supabase.from('convocados').select('*'),
+            // Filtrado por semana actual: evita mostrar una convocatoria vieja del
+            // mismo día (ej. "Viernes" de hace un mes) como si fuera de hoy.
+            _supabase.from('convocados').select('*').eq('semana_lunes', semanaActualStr),
             _supabase.from('agendas').select('*').eq('user_name', usuarioActivo.toLowerCase().trim()).maybeSingle()
         ]);
 
@@ -437,48 +439,66 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // === STOCK: ENVÍO EN DOS ETAPAS (INICIAL / FINAL), COMBINADAS EN UNA MISMA FILA EN SHEETS ===
     const URL_GOOGLE_SHEET = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
-    const CLAVE_STOCK_PROGRESO = "stockPlanillaEnProgreso";
+    const CLAVE_RESPALDO_STOCK_INICIAL = "respaldoStockInicial";
+    const CLAVE_RESPALDO_STOCK_FINAL = "respaldoStockFinal";
+    verificarEnvioPendiente(CLAVE_RESPALDO_STOCK_INICIAL, 'respaldo-pendiente-stock-inicial', URL_GOOGLE_SHEET);
+    verificarEnvioPendiente(CLAVE_RESPALDO_STOCK_FINAL, 'respaldo-pendiente-stock-final', URL_GOOGLE_SHEET);
     const COOLDOWN_INICIAL_MS = 5 * 60 * 1000; // 5 minutos
     const valoresStockManual = {};
     const estadoStockEnviosLocal = { inicialEnviado: false, timestampInicial: null };
     let intervaloCooldownInicial = null;
 
-    function cargarProgresoStockGuardado() {
+    // El progreso de stock se guarda en Supabase (tabla stock_progreso), asociado
+    // a la cuenta -no al dispositivo- así no se pierde si cambia de celular o se
+    // borra el caché a mitad de un conteo.
+    async function cargarProgresoStockGuardado() {
         try {
-            const guardado = localStorage.getItem(CLAVE_STOCK_PROGRESO);
-            if (!guardado) return;
-            const datos = JSON.parse(guardado);
-            if (datos && datos.valores) {
+            const { data, error } = await _supabase.rpc('obtener_stock_progreso', { p_token: obtenerTokenSesion() });
+            if (error) throw error;
+            const datos = (data && data.length > 0) ? data[0] : null;
+            if (!datos) return;
+
+            if (datos.valores) {
                 Object.assign(valoresStockManual, datos.valores);
             }
-            if (datos && datos.barra) {
+            if (datos.barra) {
                 const selectBarra = document.getElementById("select-barra");
                 if (selectBarra) selectBarra.value = datos.barra;
             }
-            if (datos && datos.responsable) {
+            if (datos.responsable) {
                 const inputResponsable = document.getElementById("input-nombre-stock");
                 if (inputResponsable) inputResponsable.value = datos.responsable;
             }
-            if (datos && typeof datos.inicialEnviado === "boolean") {
-                estadoStockEnviosLocal.inicialEnviado = datos.inicialEnviado;
-                estadoStockEnviosLocal.timestampInicial = datos.timestampInicial || null;
+            if (typeof datos.inicial_enviado === "boolean") {
+                estadoStockEnviosLocal.inicialEnviado = datos.inicial_enviado;
+                estadoStockEnviosLocal.timestampInicial = datos.timestamp_inicial ? new Date(datos.timestamp_inicial).getTime() : null;
             }
         } catch (err) {
             console.error("Error al cargar el progreso de stock guardado:", err);
         }
     }
 
+    // Debounced: el input de la tabla de stock dispara un evento por cada
+    // tecla, y no tiene sentido pegarle a la red esa cantidad de veces.
+    let temporizadorGuardadoStock = null;
     function guardarProgresoStockEnStorage() {
-        const selectBarra = document.getElementById("select-barra");
-        const inputResponsable = document.getElementById("input-nombre-stock");
-        const datos = {
-            valores: valoresStockManual,
-            barra: selectBarra ? selectBarra.value : "",
-            responsable: inputResponsable ? inputResponsable.value : "",
-            inicialEnviado: estadoStockEnviosLocal.inicialEnviado,
-            timestampInicial: estadoStockEnviosLocal.timestampInicial
-        };
-        localStorage.setItem(CLAVE_STOCK_PROGRESO, JSON.stringify(datos));
+        clearTimeout(temporizadorGuardadoStock);
+        temporizadorGuardadoStock = setTimeout(async () => {
+            const selectBarra = document.getElementById("select-barra");
+            const inputResponsable = document.getElementById("input-nombre-stock");
+            try {
+                await _supabase.rpc('guardar_stock_progreso', {
+                    p_token: obtenerTokenSesion(),
+                    p_barra: selectBarra ? selectBarra.value : "",
+                    p_responsable: inputResponsable ? inputResponsable.value : "",
+                    p_valores: valoresStockManual,
+                    p_inicial_enviado: estadoStockEnviosLocal.inicialEnviado,
+                    p_timestamp_inicial: estadoStockEnviosLocal.timestampInicial ? new Date(estadoStockEnviosLocal.timestampInicial).toISOString() : null
+                });
+            } catch (err) {
+                console.error("Error al guardar el progreso de stock:", err);
+            }
+        }, 800);
     }
 
     // Habilita/deshabilita los botones de Inicial y Final, y muestra la cuenta
@@ -557,26 +577,26 @@ document.addEventListener("DOMContentLoaded", async () => {
             tabBebida.show();
         }
 
-        cargarProgresoStockGuardado();
+        await cargarProgresoStockGuardado();
         renderizarStock(listaStockGlobal);
         actualizarEstadoBotonesStock();
     } else {
         renderizarComidas(listaComidasGlobal);
-        configurarBlocDeNotas(usuarioActivo);
+        await configurarBlocDeNotas(usuarioActivo);
     }
 
     renderizarBebidas(listaBebidasGlobal);
     configurarBuscadoresCarta();
 
     // === BLOC DE NOTAS PERSONAL (SOLO MOZOS) ===
-    // Se guarda automáticamente en este dispositivo (localStorage), por usuario.
-    function configurarBlocDeNotas(usuario) {
+    // Se guarda en Supabase (tabla notas_personal), asociado a la cuenta -no al
+    // dispositivo- así no se pierde si el mozo cambia de celular o se borra el
+    // caché del navegador.
+    async function configurarBlocDeNotas(usuario) {
         const textarea = document.getElementById("bloc-notas-mozo");
         const badge = document.getElementById("notas-guardado-badge");
         const btnVaciar = document.getElementById("btn-vaciar-notas");
         if (!textarea) return;
-
-        const claveNotas = `notasTurnoMozo_${(usuario || "").toLowerCase().trim()}`;
 
         const marcarGuardado = () => {
             if (!badge) return;
@@ -591,27 +611,31 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
 
         // Cargar lo que tenía guardado de antes
-        const notaGuardada = localStorage.getItem(claveNotas);
-        if (notaGuardada) {
-            textarea.value = notaGuardada;
-            marcarGuardado();
+        try {
+            const { data: notaGuardada, error } = await _supabase.rpc('obtener_nota_personal', { p_token: obtenerTokenSesion() });
+            if (!error && notaGuardada) {
+                textarea.value = notaGuardada;
+                marcarGuardado();
+            }
+        } catch (err) {
+            console.error("Error al cargar las notas:", err);
         }
 
         let temporizadorGuardado = null;
         textarea.addEventListener("input", () => {
             marcarEscribiendo();
             clearTimeout(temporizadorGuardado);
-            temporizadorGuardado = setTimeout(() => {
-                localStorage.setItem(claveNotas, textarea.value);
-                marcarGuardado();
+            temporizadorGuardado = setTimeout(async () => {
+                const { error } = await _supabase.rpc('guardar_nota_personal', { p_token: obtenerTokenSesion(), p_nota: textarea.value });
+                if (!error) marcarGuardado();
             }, 600);
         });
 
         if (btnVaciar) {
-            btnVaciar.addEventListener("click", () => {
+            btnVaciar.addEventListener("click", async () => {
                 if (!textarea.value.trim() || confirm("¿Vaciar todas las notas del turno?")) {
                     textarea.value = "";
-                    localStorage.removeItem(claveNotas);
+                    await _supabase.rpc('guardar_nota_personal', { p_token: obtenerTokenSesion(), p_nota: "" });
                     if (badge) {
                         badge.innerText = "Sin cambios";
                         badge.className = "badge bg-secondary small";
@@ -728,21 +752,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             mostrarNotificacion("Enviando Inicial a Google Sheets...", "exito");
 
             try {
-                await fetch(URL_GOOGLE_SHEET, {
-                    method: "POST",
-                    mode: "no-cors",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ modo: "inicial", filas: registrosInicial })
-                });
+                await enviarConRespaldo(URL_GOOGLE_SHEET, { modo: "inicial", filas: registrosInicial }, CLAVE_RESPALDO_STOCK_INICIAL);
+                verificarEnvioPendiente(CLAVE_RESPALDO_STOCK_INICIAL, 'respaldo-pendiente-stock-inicial', URL_GOOGLE_SHEET);
 
                 estadoStockEnviosLocal.inicialEnviado = true;
                 estadoStockEnviosLocal.timestampInicial = Date.now();
                 guardarProgresoStockEnStorage();
 
-                mostrarNotificacion("¡Inicial enviado! Ya podés cargar el Final cuando termine el turno.", "exito");
+                mostrarNotificacion("Inicial enviado (revisá la planilla para confirmar). Ya podés cargar el Final cuando termine el turno.", "exito");
                 actualizarEstadoBotonesStock();
             } catch (err) {
-                mostrarNotificacion("Error al enviar el Inicial.", "error");
+                mostrarNotificacion("Error al enviar el Inicial. Se guardó un respaldo para reintentar.", "error");
+                verificarEnvioPendiente(CLAVE_RESPALDO_STOCK_INICIAL, 'respaldo-pendiente-stock-inicial', URL_GOOGLE_SHEET);
                 btnEnviarInicial.disabled = false;
             }
         });
@@ -781,18 +802,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             mostrarNotificacion("Enviando Final a Google Sheets...", "exito");
 
             try {
-                await fetch(URL_GOOGLE_SHEET, {
-                    method: "POST",
-                    mode: "no-cors",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ modo: "final", filas: registrosFinal })
-                });
+                await enviarConRespaldo(URL_GOOGLE_SHEET, { modo: "final", filas: registrosFinal }, CLAVE_RESPALDO_STOCK_FINAL);
 
-                mostrarNotificacion("¡Planilla de stock cerrada con éxito!", "exito");
-                localStorage.removeItem(CLAVE_STOCK_PROGRESO);
+                mostrarNotificacion("Planilla enviada. Revisá la planilla para confirmar que se cerró.", "exito");
+                await _supabase.rpc('limpiar_stock_progreso', { p_token: obtenerTokenSesion() });
                 setTimeout(() => { window.location.reload(); }, 1500);
             } catch (err) {
-                mostrarNotificacion("Error al enviar el Final.", "error");
+                mostrarNotificacion("Error al enviar el Final. Se guardó un respaldo para reintentar.", "error");
+                verificarEnvioPendiente(CLAVE_RESPALDO_STOCK_FINAL, 'respaldo-pendiente-stock-final', URL_GOOGLE_SHEET);
                 btnEnviarFinal.disabled = false;
             }
         });
