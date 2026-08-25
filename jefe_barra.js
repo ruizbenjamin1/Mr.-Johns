@@ -382,15 +382,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             });
 
-            // RENDER DE BARTENDERS: CONVOCADOS Y DISPONIBLES (bartender + admin_barra,
-            // como antes) VS. CRUD DE CUENTAS (solo bartender: el backend ya no deja
-            // que un Jefe de Barra cree/edite/elimine cuentas fuera de su equipo).
+            // RENDER DE BARTENDERS: CONVOCADOS, DISPONIBLES Y CRUD (solo rol
+            // 'bartender' - el Jefe de Barra es gestión, no personal convocable).
             usuariosDB.forEach(usuario => {
                 const rolLimpio = (usuario.rol || "").toLowerCase().trim();
-                const esBartender = rolLimpio === "bartender" || rolLimpio === "admin_barra";
-                const esGestionableCRUD = rolLimpio === "bartender";
+                // El Jefe de Barra (admin_barra) es un rol de gestión, no personal
+                // convocable: no debe aparecer ni en disponibilidad/convocatoria ni
+                // en el CRUD de este panel.
+                const esBartender = rolLimpio === "bartender";
 
-                if (esGestionableCRUD && tablaCRUD) {
+                if (esBartender && tablaCRUD) {
                     tablaCRUD.innerHTML += `
                         <tr>
                             <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-bname-${usuario.user_name}" value="${escaparHTML(usuario.nombre_real || '')}"></td>
@@ -479,7 +480,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 contenedorEquipoFinal.innerHTML = `<p class="text-muted small text-center my-2">No hay bartenders convocados para el ${diaSeleccionado}.</p>`;
             }
 
-            renderizarGrillaSemanal(usuariosDB, agendasDB, convocadosDB, (rol) => rol === 'bartender' || rol === 'admin_barra', 'grilla-semanal-bartenders');
+            renderizarGrillaSemanal(usuariosDB, agendasDB, convocadosDB, (rol) => rol === 'bartender', 'grilla-semanal-bartenders');
 
         } catch (err) {
             console.error("Error al cargar panel de Jefe de Barra:", err);
