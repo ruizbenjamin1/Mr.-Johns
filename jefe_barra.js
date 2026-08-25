@@ -110,7 +110,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // === 2. CONTROL DE LOGOUT ===
     const btnLogout = document.getElementById("btn-logout");
     if (btnLogout) {
-        btnLogout.addEventListener("click", () => {
+        btnLogout.addEventListener("click", async () => {
+            await _supabase.rpc('cerrar_sesion', { p_token: obtenerTokenSesion() });
             sessionStorage.clear();
             mostrarNotificacion("Sesión cerrada correctamente. ¡Buen descanso!", "exito");
             setTimeout(() => { window.location.href = "index.html"; }, 1200);
@@ -122,7 +123,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.eliminarBartender = async (usernameKey) => {
         if (confirm(`¿Estás seguro de eliminar al bartender "${usernameKey}"?`)) {
             try {
-                const { error } = await _supabase.from('usuarios').delete().eq('user_name', usernameKey);
+                const { error } = await _supabase.rpc('admin_eliminar_usuario', {
+                    p_token: obtenerTokenSesion(),
+                    p_user_name: usernameKey
+                });
                 if (error) throw error;
 
                 mostrarNotificacion("Bartender eliminado correctamente.", "exito");
@@ -144,17 +148,25 @@ document.addEventListener("DOMContentLoaded", async () => {
             // La contraseña ya NO se manda en este update: si el campo quedó vacío,
             // significa que no se quiso cambiar. Si se escribió una nueva, se fija
             // por separado con actualizar_password, que la hashea del lado del
-            // servidor (nunca se guarda ni se muestra en texto plano).
-            const { error } = await _supabase
-                .from('usuarios')
-                .update({ nombre_real: nombreEditado, user_name: usuarioEditado, rol: rolEditado })
-                .eq('user_name', usernameOriginal);
+            // servidor (nunca se guarda ni se muestra en texto plano). Ambas RPC
+            // validan del lado del servidor que quien llama tiene un token de sesión
+            // vigente con rol de administrador / jefe de barra.
+            const { error } = await _supabase.rpc('admin_actualizar_usuario', {
+                p_token: obtenerTokenSesion(),
+                p_username_original: usernameOriginal,
+                p_nombre_real: nombreEditado,
+                p_user_name_nuevo: usuarioEditado,
+                p_rol: rolEditado
+            });
 
             if (error) throw error;
 
             if (passEditada) {
-                const { error: errorPass } = await _supabase
-                    .rpc('actualizar_password', { p_user_name: usuarioEditado, p_nueva_pass: passEditada });
+                const { error: errorPass } = await _supabase.rpc('actualizar_password', {
+                    p_token: obtenerTokenSesion(),
+                    p_user_name: usuarioEditado,
+                    p_nueva_pass: passEditada
+                });
                 if (errorPass) throw errorPass;
             }
 
@@ -168,25 +180,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     window.alternarConvocatoriaBartender = async (username, estaConvocado) => {
         try {
-            if (estaConvocado) {
-                const { error } = await _supabase
-                    .from('convocados')
-                    .delete()
-                    .eq('user_name', username)
-                    .eq('dia', diaSeleccionado);
+            const { error } = await _supabase.rpc('gestion_convocatoria', {
+                p_token: obtenerTokenSesion(),
+                p_user_name: username,
+                p_dia: diaSeleccionado,
+                p_accion: estaConvocado ? 'quitar' : 'agregar'
+            });
 
-                if (error) throw error;
-                mostrarNotificacion("Bartender removido de la convocatoria.", "exito");
-            } else {
-                const { error } = await _supabase
-                    .from('convocados')
-                    .insert([
-                        { user_name: username, sector: "Principal", propina_individual: 0, dia: diaSeleccionado }
-                    ]);
-
-                if (error) throw error;
-                mostrarNotificacion("Bartender convocado con éxito.", "exito");
-            }
+            if (error) throw error;
+            mostrarNotificacion(estaConvocado ? "Bartender removido de la convocatoria." : "Bartender convocado con éxito.", "exito");
 
             cargarPanelJefeBarra();
         } catch (err) {
@@ -197,11 +199,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     window.guardarSectorBartender = async (username, sectorVal) => {
         try {
-            const { error } = await _supabase
-                .from('convocados')
-                .update({ sector: sectorVal })
-                .eq('user_name', username)
-                .eq('dia', diaSeleccionado);
+            const { error } = await _supabase.rpc('gestion_sector_convocado', {
+                p_token: obtenerTokenSesion(),
+                p_user_name: username,
+                p_dia: diaSeleccionado,
+                p_sector: sectorVal
+            });
 
             if (error) throw error;
             mostrarNotificacion("Barra asignada correctamente.", "exito");
@@ -216,35 +219,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             const sectorLimpio = sectorBarra.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, "").trim();
 
-            const { data: propinasExistentes } = await _supabase
-                .from('propinas_barras')
-                .select('*')
-                .eq('sector_barra', sectorLimpio);
+            const { error } = await _supabase.rpc('gestion_propina_barra', {
+                p_token: obtenerTokenSesion(),
+                p_sector_barra: sectorLimpio,
+                p_dia: diaSeleccionado,
+                p_monto: Number(montoVal) || 0
+            });
 
-            const registroPropina = (propinasExistentes || []).find(pb => pb.dia === diaSeleccionado) || (propinasExistentes || [])[0];
-
-            if (registroPropina) {
-                // Nota: la tabla "propinas_barras" no tiene columna "updated_at" -a
-                // diferencia de otras tablas de la app-, así que no se manda acá.
-                // Mandarla hacía que Supabase rechace el update entero con un 400
-                // ("Could not find the 'updated_at' column").
-                await _supabase
-                    .from('propinas_barras')
-                    .update({
-                        monto: Number(montoVal) || 0,
-                        dia: diaSeleccionado
-                    })
-                    .eq('id', registroPropina.id);
-            } else {
-                await _supabase
-                    .from('propinas_barras')
-                    .insert([{
-                        sector_barra: sectorLimpio,
-                        monto: Number(montoVal) || 0,
-                        dia: diaSeleccionado
-                    }]);
-            }
-
+            if (error) throw error;
         } catch (err) {
             console.error("Error al guardar propina de barra:", err);
         }
@@ -273,7 +255,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const [resConvocados, resUsuarios] = await Promise.all([
                 _supabase.from('convocados').select('*'),
-                _supabase.from('usuarios').select('user_name, nombre_real, rol')
+                _supabase.from('usuarios_public').select('user_name, nombre_real, rol')
             ]);
 
             if (resConvocados.error) throw resConvocados.error;
@@ -347,7 +329,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function cargarPanelJefeBarra() {
         try {
             const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
-                _supabase.from('usuarios').select('user_name, nombre_real, rol'),
+                _supabase.from('usuarios_public').select('user_name, nombre_real, rol'),
                 _supabase.from('agendas').select('*'),
                 _supabase.from('convocados').select('*')
             ]);
@@ -505,24 +487,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             const password = document.getElementById("new-bartender-password").value;
 
             try {
-                // Creamos el usuario sin contraseña en texto plano, y después le
-                // fijamos la contraseña con la función que la hashea del lado del
-                // servidor.
-                const { error } = await _supabase
-                    .from('usuarios')
-                    .insert([{ user_name: username, nombre_real: nombre, rol: "bartender" }]);
+                // Alta y contraseña se fijan en una sola llamada al servidor (que
+                // valida el rol de quien llama y hashea la contraseña ahí mismo).
+                const { error } = await _supabase.rpc('admin_crear_usuario', {
+                    p_token: obtenerTokenSesion(),
+                    p_user_name: username,
+                    p_nombre_real: nombre,
+                    p_rol: "bartender",
+                    p_password: password
+                });
 
                 if (error) {
                     mostrarNotificacion(`Error de Supabase: ${error.message}`, "error");
-                    return;
-                }
-
-                const { error: errorPass } = await _supabase
-                    .rpc('actualizar_password', { p_user_name: username, p_nueva_pass: password });
-
-                if (errorPass) {
-                    mostrarNotificacion(`El bartender se creó, pero no se pudo fijar la contraseña: ${errorPass.message}`, "error");
-                    cargarPanelJefeBarra();
                     return;
                 }
 

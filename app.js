@@ -83,9 +83,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
-                // Guardamos la sesión activa
+                // Guardamos la sesión activa (el token lo valida el servidor en cada
+                // operación sensible, no alcanza con lo que haya en el navegador)
                 sessionStorage.setItem("usuarioLogueado", usuario.user_name);
                 sessionStorage.setItem("rolUsuario", usuario.rol);
+                sessionStorage.setItem("tokenSesion", usuario.token);
 
                 mostrarNotificacion(`¡Bienvenido, ${usuario.nombre_real || usuario.user_name}!`, "exito");
 

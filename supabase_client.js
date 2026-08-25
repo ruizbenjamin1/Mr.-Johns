@@ -11,6 +11,14 @@ const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // tiene que pasar por acá antes. Si no, alguien podría escribir algo como
 // "<img src=x onerror=...>" en sus notas y ese código se ejecutaría en el
 // navegador de quien abra el panel de administración.
+// === TOKEN DE SESION (emitido por verificar_login, guardado en sessionStorage) ===
+// Todas las escrituras sensibles ahora pasan por funciones RPC que validan este
+// token y el rol del usuario del lado del servidor -ya no alcanza con "parecer"
+// logueado en el navegador, como pasaba antes-.
+function obtenerTokenSesion() {
+    return sessionStorage.getItem("tokenSesion");
+}
+
 function escaparHTML(texto) {
     if (texto === null || texto === undefined) return '';
     return String(texto)

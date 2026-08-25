@@ -38,7 +38,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // === 2. CONTROL DE LOGOUT ===
-    const ejecutarLogout = () => {
+    const ejecutarLogout = async () => {
+        await _supabase.rpc('cerrar_sesion', { p_token: obtenerTokenSesion() });
         sessionStorage.clear();
         mostrarNotificacion("Sesión cerrada correctamente. ¡Buen descanso!", "exito");
         setTimeout(() => { window.location.href = "index.html"; }, 1200);
@@ -124,7 +125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // === 5. CARGA ASÍNCRONA DE DATOS DESDE SUPABASE ===
     try {
         const [resUsuarios, resConvocados, resAgendaPropia] = await Promise.all([
-            _supabase.from('usuarios').select('*'),
+            _supabase.from('usuarios_public').select('*'),
             _supabase.from('convocados').select('*'),
             _supabase.from('agendas').select('*').eq('user_name', usuarioActivo.toLowerCase().trim()).maybeSingle()
         ]);
@@ -276,34 +277,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             const nota = notaInput ? notaInput.value.trim() : "";
 
             try {
-                const { data: agendaExistente } = await _supabase
-                    .from('agendas')
-                    .select('id')
-                    .eq('user_name', usuarioActivo.toLowerCase().trim())
-                    .maybeSingle();
-
-                const objetoAgenda = {
-                    user_name: usuarioActivo.toLowerCase().trim(),
-                    lunes: estadoDias.lunes,
-                    martes: estadoDias.martes,
-                    miercoles: estadoDias.miercoles,
-                    jueves: estadoDias.jueves,
-                    viernes: estadoDias.viernes,
-                    sabado: estadoDias.sabado,
-                    domingo: estadoDias.domingo,
-                    observaciones: nota,
-                    updated_at: new Date().toISOString()
-                };
-
-                let errorOp = null;
-
-                if (agendaExistente) {
-                    const { error } = await _supabase.from('agendas').update(objetoAgenda).eq('user_name', usuarioActivo.toLowerCase().trim());
-                    errorOp = error;
-                } else {
-                    const { error } = await _supabase.from('agendas').insert([objetoAgenda]);
-                    errorOp = error;
-                }
+                // El usuario dueño de la agenda lo determina el token de sesión del
+                // lado del servidor (no un user_name que mande el cliente), así nadie
+                // puede guardar la agenda de otra persona.
+                const { error: errorOp } = await _supabase.rpc('guardar_agenda', {
+                    p_token: obtenerTokenSesion(),
+                    p_lunes: estadoDias.lunes,
+                    p_martes: estadoDias.martes,
+                    p_miercoles: estadoDias.miercoles,
+                    p_jueves: estadoDias.jueves,
+                    p_viernes: estadoDias.viernes,
+                    p_sabado: estadoDias.sabado,
+                    p_domingo: estadoDias.domingo,
+                    p_observaciones: nota
+                });
 
                 if (errorOp) {
                     mostrarNotificacion(`Error de Supabase: ${errorOp.message}`, "error");

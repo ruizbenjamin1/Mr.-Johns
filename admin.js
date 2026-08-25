@@ -148,7 +148,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     // === CONTROL DE LOGOUT ===
     const btnLogout = document.getElementById("btn-logout");
     if (btnLogout) {
-        btnLogout.addEventListener("click", () => {
+        btnLogout.addEventListener("click", async () => {
+            await _supabase.rpc('cerrar_sesion', { p_token: obtenerTokenSesion() });
             sessionStorage.clear();
             mostrarNotificacion("Sesión cerrada correctamente. ¡Buen descanso!", "exito");
             setTimeout(() => { window.location.href = "index.html"; }, 1200);
@@ -160,7 +161,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.eliminarUsuario = async (usernameKey) => {
         if (confirm(`¿Estás seguro de que querés eliminar permanentemente al usuario "${usernameKey}"?`)) {
             try {
-                const { error } = await _supabase.from('usuarios').delete().eq('user_name', usernameKey);
+                const { error } = await _supabase.rpc('admin_eliminar_usuario', {
+                    p_token: obtenerTokenSesion(),
+                    p_user_name: usernameKey
+                });
                 if (error) throw error;
                 mostrarNotificacion("Usuario eliminado correctamente.", "exito");
                 cargarPanelAdmin();
@@ -187,16 +191,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             // significa que el admin no quiso cambiarla. Si escribió algo nuevo, se
             // fija por separado con la función actualizar_password, que la hashea
             // del lado del servidor (nunca se guarda ni se muestra en texto plano).
-            const { error } = await _supabase
-                .from('usuarios')
-                .update({ nombre_real: nombreEditado, user_name: usuarioEditado, rol: rolEditado })
-                .eq('user_name', usernameOriginal);
+            // Ambas RPC validan del lado del servidor que quien llama tiene un token
+            // de sesión vigente con rol de administrador.
+            const { error } = await _supabase.rpc('admin_actualizar_usuario', {
+                p_token: obtenerTokenSesion(),
+                p_username_original: usernameOriginal,
+                p_nombre_real: nombreEditado,
+                p_user_name_nuevo: usuarioEditado,
+                p_rol: rolEditado
+            });
 
             if (error) throw error;
 
             if (passEditada) {
-                const { error: errorPass } = await _supabase
-                    .rpc('actualizar_password', { p_user_name: usuarioEditado, p_nueva_pass: passEditada });
+                const { error: errorPass } = await _supabase.rpc('actualizar_password', {
+                    p_token: obtenerTokenSesion(),
+                    p_user_name: usuarioEditado,
+                    p_nueva_pass: passEditada
+                });
                 if (errorPass) throw errorPass;
             }
 
@@ -210,25 +222,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     window.alternarConvocatoria = async (username, estaConvocado) => {
         try {
-            if (estaConvocado) {
-                const { error } = await _supabase
-                    .from('convocados')
-                    .delete()
-                    .eq('user_name', username)
-                    .eq('dia', diaSeleccionado);
+            const { error } = await _supabase.rpc('gestion_convocatoria', {
+                p_token: obtenerTokenSesion(),
+                p_user_name: username,
+                p_dia: diaSeleccionado,
+                p_accion: estaConvocado ? 'quitar' : 'agregar'
+            });
 
-                if (error) throw error;
-                mostrarNotificacion("Personal removido de la convocatoria.", "exito");
-            } else {
-                const { error } = await _supabase
-                    .from('convocados')
-                    .insert([
-                        { user_name: username, sector: "Principal", propina_individual: 0, dia: diaSeleccionado }
-                    ]);
-
-                if (error) throw error;
-                mostrarNotificacion("Personal convocado con éxito.", "exito");
-            }
+            if (error) throw error;
+            mostrarNotificacion(estaConvocado ? "Personal removido de la convocatoria." : "Personal convocado con éxito.", "exito");
 
             cargarPanelAdmin();
         } catch (err) {
@@ -239,11 +241,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     window.guardarSectorMozo = async (username, sectorVal) => {
         try {
-            const { error } = await _supabase
-                .from('convocados')
-                .update({ sector: sectorVal })
-                .eq('user_name', username)
-                .eq('dia', diaSeleccionado);
+            const { error } = await _supabase.rpc('gestion_sector_convocado', {
+                p_token: obtenerTokenSesion(),
+                p_user_name: username,
+                p_dia: diaSeleccionado,
+                p_sector: sectorVal
+            });
 
             if (error) throw error;
             mostrarNotificacion("Sector guardado correctamente.", "exito");
@@ -255,11 +258,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     window.guardarPropinaMozo = async (username, montoVal) => {
         try {
-            const { error } = await _supabase
-                .from('convocados')
-                .update({ propina_individual: Number(montoVal) || 0 })
-                .eq('user_name', username)
-                .eq('dia', diaSeleccionado);
+            const { error } = await _supabase.rpc('gestion_propina_convocado', {
+                p_token: obtenerTokenSesion(),
+                p_user_name: username,
+                p_dia: diaSeleccionado,
+                p_monto: Number(montoVal) || 0
+            });
 
             if (error) throw error;
         } catch (err) {
@@ -328,9 +332,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function cargarPanelAdmin() {
         try {
             const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
-                // Nunca traemos la contraseña (ni su hash) al panel: no hace falta para
-                // mostrar/editar el personal, y así evitamos exponerla en el cliente.
-                _supabase.from('usuarios').select('user_name, nombre_real, rol'),
+                // Se lee desde la vista "usuarios_public": no incluye pass_hash, y la
+                // tabla real "usuarios" ya no es accesible directo desde el navegador.
+                _supabase.from('usuarios_public').select('user_name, nombre_real, rol'),
                 _supabase.from('agendas').select('*'),
                 _supabase.from('convocados').select('*')
             ]);
@@ -479,24 +483,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             const rol = rolSelect ? rolSelect.value : "mozo";
 
             try {
-                // Creamos el usuario sin contraseña en texto plano, y después le
-                // fijamos la contraseña con la función que la hashea del lado del
-                // servidor.
-                const { error } = await _supabase
-                    .from('usuarios')
-                    .insert([{ user_name: username, nombre_real: nombre, rol: rol }]);
+                // Alta y contraseña se fijan en una sola llamada al servidor (que
+                // valida el rol de quien llama y hashea la contraseña ahí mismo).
+                const { error } = await _supabase.rpc('admin_crear_usuario', {
+                    p_token: obtenerTokenSesion(),
+                    p_user_name: username,
+                    p_nombre_real: nombre,
+                    p_rol: rol,
+                    p_password: password
+                });
 
                 if (error) {
                     mostrarNotificacion(`Error de Supabase: ${error.message}`, "error");
-                    return;
-                }
-
-                const { error: errorPass } = await _supabase
-                    .rpc('actualizar_password', { p_user_name: username, p_nueva_pass: password });
-
-                if (errorPass) {
-                    mostrarNotificacion(`El usuario se creó, pero no se pudo fijar la contraseña: ${errorPass.message}`, "error");
-                    cargarPanelAdmin();
                     return;
                 }
 
