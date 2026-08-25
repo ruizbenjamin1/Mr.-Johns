@@ -449,7 +449,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     ];
 
     // === STOCK: ENVÍO EN DOS ETAPAS (INICIAL / FINAL), COMBINADAS EN UNA MISMA FILA EN SHEETS ===
-    const URL_GOOGLE_SHEET = "https://script.google.com/macros/s/AKfycbzc5qfiy2_1ESfoubNWNW8vWBNtk0LO9_HaFyI4bmJfeJFXHF8iBlBd4l1ewpRVq_Pt/exec";
+    const URL_GOOGLE_SHEET = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
     const CLAVE_STOCK_PROGRESO = "stockPlanillaEnProgreso";
     const COOLDOWN_INICIAL_MS = 5 * 60 * 1000; // 5 minutos
     const valoresStockManual = {};

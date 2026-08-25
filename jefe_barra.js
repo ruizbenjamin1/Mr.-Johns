@@ -8,8 +8,8 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
             position: "right",
             stopOnFocus: true,
             style: {
-                background: tipo === "exito" 
-                    ? "linear-gradient(to right, #00b09b, #96c93d)" 
+                background: tipo === "exito"
+                    ? "linear-gradient(to right, #00b09b, #96c93d)"
                     : "linear-gradient(to right, #ff5f6d, #ffc371)",
                 borderRadius: "8px",
                 fontWeight: "bold",
@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const sectoresBarra = ["Vip", "Cantina", "Altillo", "Principal", "Patio", "Evento"];
-    const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbzNq6zFAAEj7TTqdz5A78ZRcPhb8I80DlCm_F0E05T1lZWzuEkJ1aeStZb1K1vWM3X_UQ/exec";
+    const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
 
     // === CONTRASEÑA PARA VER LA TABLA DE BARTENDERS REGISTRADOS ===
     // Cambiá esta clave por la que quieras usar.
@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             try {
                 const { error } = await _supabase.from('usuarios').delete().eq('user_name', usernameKey);
                 if (error) throw error;
-                
+
                 mostrarNotificacion("Bartender eliminado correctamente.", "exito");
                 cargarPanelJefeBarra();
             } catch (err) {
@@ -141,13 +141,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         const rolEditado = document.getElementById(`edit-brole-${usernameOriginal}`).value;
 
         try {
+            // La contraseña ya NO se manda en este update: si el campo quedó vacío,
+            // significa que no se quiso cambiar. Si se escribió una nueva, se fija
+            // por separado con actualizar_password, que la hashea del lado del
+            // servidor (nunca se guarda ni se muestra en texto plano).
             const { error } = await _supabase
                 .from('usuarios')
-                .update({ nombre_real: nombreEditado, user_name: usuarioEditado, pass: passEditada, rol: rolEditado })
+                .update({ nombre_real: nombreEditado, user_name: usuarioEditado, rol: rolEditado })
                 .eq('user_name', usernameOriginal);
 
             if (error) throw error;
-            
+
+            if (passEditada) {
+                const { error: errorPass } = await _supabase
+                    .rpc('actualizar_password', { p_user_name: usuarioEditado, p_nueva_pass: passEditada });
+                if (errorPass) throw errorPass;
+            }
+
             mostrarNotificacion("Datos actualizados con éxito.", "exito");
             cargarPanelJefeBarra();
         } catch (err) {
@@ -214,21 +224,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             const registroPropina = (propinasExistentes || []).find(pb => pb.dia === diaSeleccionado) || (propinasExistentes || [])[0];
 
             if (registroPropina) {
+                // Nota: la tabla "propinas_barras" no tiene columna "updated_at" -a
+                // diferencia de otras tablas de la app-, así que no se manda acá.
+                // Mandarla hacía que Supabase rechace el update entero con un 400
+                // ("Could not find the 'updated_at' column").
                 await _supabase
                     .from('propinas_barras')
-                    .update({ 
-                        monto: Number(montoVal) || 0, 
-                        dia: diaSeleccionado,
-                        updated_at: new Date().toISOString() 
+                    .update({
+                        monto: Number(montoVal) || 0,
+                        dia: diaSeleccionado
                     })
                     .eq('id', registroPropina.id);
             } else {
                 await _supabase
                     .from('propinas_barras')
-                    .insert([{ 
-                        sector_barra: sectorLimpio, 
-                        monto: Number(montoVal) || 0, 
-                        dia: diaSeleccionado 
+                    .insert([{
+                        sector_barra: sectorLimpio,
+                        monto: Number(montoVal) || 0,
+                        dia: diaSeleccionado
                     }]);
             }
 
@@ -242,14 +255,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         try {
             const mapaPropinasPantalla = {};
             const filasTabla = document.querySelectorAll('#tabla-propinas-sectores-body tr');
-            
+
             for (const fila of filasTabla) {
                 const tdSector = fila.querySelector('td');
                 const inputMonto = fila.querySelector('input[type="number"]');
                 if (tdSector && inputMonto) {
                     const sectorNombre = tdSector.textContent.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]/g, "").trim();
                     const monto = Number(inputMonto.value) || 0;
-                    
+
                     mapaPropinasPantalla[sectorNombre.toLowerCase()] = monto;
                     guardarPropinaBarra(sectorNombre, monto);
                 }
@@ -260,7 +273,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const [resConvocados, resUsuarios] = await Promise.all([
                 _supabase.from('convocados').select('*'),
-                _supabase.from('usuarios').select('*')
+                _supabase.from('usuarios').select('user_name, nombre_real, rol')
             ]);
 
             if (resConvocados.error) throw resConvocados.error;
@@ -305,9 +318,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    tipo: "barras", 
-                    filas: filasProcesadas 
+                body: JSON.stringify({
+                    tipo: "barras",
+                    filas: filasProcesadas
                 })
             });
 
@@ -334,7 +347,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function cargarPanelJefeBarra() {
         try {
             const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
-                _supabase.from('usuarios').select('*'),
+                _supabase.from('usuarios').select('user_name, nombre_real, rol'),
                 _supabase.from('agendas').select('*'),
                 _supabase.from('convocados').select('*')
             ]);
@@ -387,9 +400,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (esBartender && tablaCRUD) {
                     tablaCRUD.innerHTML += `
                         <tr>
-                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-bname-${usuario.user_name}" value="${usuario.nombre_real || ''}"></td>
-                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center fw-bold text-info" id="edit-buser-${usuario.user_name}" value="${usuario.user_name}"></td>
-                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-bpass-${usuario.user_name}" value="${usuario.pass}"></td>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-bname-${usuario.user_name}" value="${escaparHTML(usuario.nombre_real || '')}"></td>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center fw-bold text-info" id="edit-buser-${usuario.user_name}" value="${escaparHTML(usuario.user_name)}"></td>
+                            <td><input type="password" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-bpass-${usuario.user_name}" placeholder="Dejar vacío para no cambiar" value="" autocomplete="new-password"></td>
                             <td>
                                 <select class="form-select form-select-sm bg-dark text-light border-secondary text-center" id="edit-brole-${usuario.user_name}">
                                     <option value="bartender" ${usuario.rol === 'bartender' ? 'selected' : ''}>Bartender</option>
@@ -433,9 +446,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                             contenedorEquipoFinal.innerHTML += `
                                 <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-info p-2" style="background-color: #0d1f2d !important;">
                                     <div class="fw-bold text-info me-3">
-                                        <i class="bi bi-check-circle-fill me-1"></i>${nombreMostrar}
+                                        <i class="bi bi-check-circle-fill me-1"></i>${escaparHTML(nombreMostrar)}
                                     </div>
-                                    
+
                                     <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-end">
                                         <div class="input-group input-group-sm" style="max-width: 230px;">
                                             <span class="input-group-text bg-dark text-secondary border-secondary"><i class="bi bi-geo-alt"></i></span>
@@ -455,9 +468,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const itemHTML = `
                             <div class="list-group-item list-group-item-custom d-flex justify-content-between align-items-center rounded-3 mb-2">
                                 <div class="ms-2 me-auto">
-                                    <div class="fw-bold text-light">${nombreMostrar}</div>
+                                    <div class="fw-bold text-light">${escaparHTML(nombreMostrar)}</div>
                                     <span class="${agendaUsuario.observaciones ? 'text-warning' : 'text-muted'} small">
-                                        ${agendaUsuario.observaciones ? 'Nota: ' + agendaUsuario.observaciones : 'Sin observaciones.'}
+                                        ${agendaUsuario.observaciones ? 'Nota: ' + escaparHTML(agendaUsuario.observaciones) : 'Sin observaciones.'}
                                     </span>
                                 </div>
                                 <button class="btn btn-sm ${estaConvocado ? 'btn-info text-dark' : 'btn-outline-info'} fw-bold px-3 py-1" onclick="alternarConvocatoriaBartender('${usuario.user_name}', ${estaConvocado})">
@@ -476,6 +489,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         } catch (err) {
             console.error("Error al cargar panel de Jefe de Barra:", err);
+            mostrarNotificacion("No se pudieron cargar los datos del panel. Reintentá recargando la página.", "error");
         }
     }
 
@@ -491,12 +505,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             const password = document.getElementById("new-bartender-password").value;
 
             try {
+                // Creamos el usuario sin contraseña en texto plano, y después le
+                // fijamos la contraseña con la función que la hashea del lado del
+                // servidor.
                 const { error } = await _supabase
                     .from('usuarios')
-                    .insert([{ user_name: username, nombre_real: nombre, pass: password, rol: "bartender" }]);
+                    .insert([{ user_name: username, nombre_real: nombre, rol: "bartender" }]);
 
                 if (error) {
                     mostrarNotificacion(`Error de Supabase: ${error.message}`, "error");
+                    return;
+                }
+
+                const { error: errorPass } = await _supabase
+                    .rpc('actualizar_password', { p_user_name: username, p_nueva_pass: password });
+
+                if (errorPass) {
+                    mostrarNotificacion(`El bartender se creó, pero no se pudo fijar la contraseña: ${errorPass.message}`, "error");
+                    cargarPanelJefeBarra();
                     return;
                 }
 

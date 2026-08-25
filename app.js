@@ -61,13 +61,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     return;
                 }
 
-                // Consulta exacta usando user_name y pass
-                const { data: usuario, error } = await _supabase
-                    .from('usuarios')
-                    .select('*')
-                    .eq('user_name', usuarioVal)
-                    .eq('pass', passVal)
-                    .maybeSingle();
+                // Verificación de login vía función de Supabase (RPC): la contraseña
+                // nunca viaja como texto plano en una consulta ni se compara en el
+                // cliente -la función compara el hash del lado del servidor y
+                // devuelve los datos del usuario solo si coincide-.
+                const { data: filasUsuario, error } = await _supabase
+                    .rpc('verificar_login', { p_user_name: usuarioVal, p_pass: passVal });
 
                 if (error) {
                     console.error("Error al consultar Supabase:", error);
@@ -75,6 +74,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     restablecerBoton(btnSubmit);
                     return;
                 }
+
+                const usuario = (filasUsuario && filasUsuario.length > 0) ? filasUsuario[0] : null;
 
                 if (!usuario) {
                     mostrarNotificacion("Usuario o contraseña incorrectos.", "error");

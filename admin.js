@@ -8,8 +8,8 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
             position: "right",
             stopOnFocus: true,
             style: {
-                background: tipo === "exito" 
-                    ? "linear-gradient(to right, #00b09b, #96c93d)" 
+                background: tipo === "exito"
+                    ? "linear-gradient(to right, #00b09b, #96c93d)"
                     : "linear-gradient(to right, #ff5f6d, #ffc371)",
                 borderRadius: "8px",
                 fontWeight: "bold",
@@ -23,7 +23,7 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    
+
     // VERIFICACIÓN DE SEGURIDAD
     const usuarioActivo = sessionStorage.getItem("usuarioLogueado");
     const rolUsuario = sessionStorage.getItem("rolUsuario");
@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio", "Cocina"];
-    const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbzNq6zFAAEj7TTqdz5A78ZRcPhb8I80DlCm_F0E05T1lZWzuEkJ1aeStZb1K1vWM3X_UQ/exec";
+    const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
 
     // === CONTRASEÑA PARA VER LA TABLA DE PERSONAL REGISTRADO ===
     // Cambiá esta clave por la que quieras usar.
@@ -135,7 +135,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ESTADO DEL DÍA SELECCIONADO PARA LA GESTIÓN
     let diaSeleccionado = "Sábado";
     const selectDia = document.getElementById("select-dia-gestion");
-    
+
     if (selectDia) {
         selectDia.addEventListener("change", (e) => {
             diaSeleccionado = e.target.value;
@@ -177,18 +177,29 @@ document.addEventListener("DOMContentLoaded", async () => {
         const passEditada = document.getElementById(`edit-pass-${usernameOriginal}`).value;
         const rolEditado = document.getElementById(`edit-role-${usernameOriginal}`).value;
 
-        if (!usuarioEditado) { 
-            mostrarNotificacion("El usuario no puede quedar vacío.", "error"); 
-            return; 
+        if (!usuarioEditado) {
+            mostrarNotificacion("El usuario no puede quedar vacío.", "error");
+            return;
         }
 
         try {
+            // La contraseña ya NO se manda en este update: si el campo quedó vacío,
+            // significa que el admin no quiso cambiarla. Si escribió algo nuevo, se
+            // fija por separado con la función actualizar_password, que la hashea
+            // del lado del servidor (nunca se guarda ni se muestra en texto plano).
             const { error } = await _supabase
                 .from('usuarios')
-                .update({ nombre_real: nombreEditado, user_name: usuarioEditado, pass: passEditada, rol: rolEditado })
+                .update({ nombre_real: nombreEditado, user_name: usuarioEditado, rol: rolEditado })
                 .eq('user_name', usernameOriginal);
 
             if (error) throw error;
+
+            if (passEditada) {
+                const { error: errorPass } = await _supabase
+                    .rpc('actualizar_password', { p_user_name: usuarioEditado, p_nueva_pass: passEditada });
+                if (errorPass) throw errorPass;
+            }
+
             mostrarNotificacion("Usuario modificado con éxito.", "exito");
             cargarPanelAdmin();
         } catch (err) {
@@ -317,7 +328,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     async function cargarPanelAdmin() {
         try {
             const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
-                _supabase.from('usuarios').select('*'),
+                // Nunca traemos la contraseña (ni su hash) al panel: no hace falta para
+                // mostrar/editar el personal, y así evitamos exponerla en el cliente.
+                _supabase.from('usuarios').select('user_name, nombre_real, rol'),
                 _supabase.from('agendas').select('*'),
                 _supabase.from('convocados').select('*')
             ]);
@@ -357,9 +370,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 if (usuario.rol !== "super_admin" && tablaDestino) {
                     const filaHTML = `
                         <tr>
-                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-name-${usuario.user_name}" value="${usuario.nombre_real || ''}"></td>
-                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center fw-bold text-warning" id="edit-user-${usuario.user_name}" value="${usuario.user_name}"></td>
-                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-pass-${usuario.user_name}" value="${usuario.pass}"></td>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-name-${usuario.user_name}" value="${escaparHTML(usuario.nombre_real || '')}"></td>
+                            <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center fw-bold text-warning" id="edit-user-${usuario.user_name}" value="${escaparHTML(usuario.user_name)}"></td>
+                            <td><input type="password" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-pass-${usuario.user_name}" placeholder="Dejar vacío para no cambiar" value="" autocomplete="new-password"></td>
                             <td>
                                 <select class="form-select form-select-sm bg-dark text-light border-secondary text-center" id="edit-role-${usuario.user_name}">
                                     <option value="mozo" ${usuario.rol === 'mozo' ? 'selected' : ''}>Mozo</option>
@@ -404,7 +417,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             contenedorEquipoFinal.innerHTML += `
                                 <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-success p-2" style="background-color: #121f15 !important;">
                                     <div class="fw-bold text-success me-3">
-                                        <i class="bi bi-check-circle-fill me-1"></i>${nombreMostrar} <small class="text-secondary">(${usuario.rol})</small>
+                                        <i class="bi bi-check-circle-fill me-1"></i>${escaparHTML(nombreMostrar)} <small class="text-secondary">(${usuario.rol})</small>
                                     </div>
                                     <div class="d-flex align-items-center gap-2 flex-grow-1 justify-content-end">
                                         <div class="input-group input-group-sm" style="max-width: 170px;">
@@ -428,9 +441,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                         const itemHTML = `
                             <div class="list-group-item list-group-item-custom d-flex justify-content-between align-items-center rounded-3 mb-2">
                                 <div class="ms-2 me-auto">
-                                    <div class="fw-bold text-light">${nombreMostrar} <small class="text-secondary">(${usuario.rol})</small></div>
+                                    <div class="fw-bold text-light">${escaparHTML(nombreMostrar)} <small class="text-secondary">(${usuario.rol})</small></div>
                                     <span class="${agendaUsuario.observaciones ? 'text-warning' : 'text-muted'} small">
-                                        ${agendaUsuario.observaciones ? 'Nota: ' + agendaUsuario.observaciones : 'Sin observaciones.'}
+                                        ${agendaUsuario.observaciones ? 'Nota: ' + escaparHTML(agendaUsuario.observaciones) : 'Sin observaciones.'}
                                     </span>
                                 </div>
                                 <button class="btn btn-sm ${estaConvocado ? 'btn-success' : 'btn-outline-warning'} fw-bold px-3 py-1" onclick="alternarConvocatoria('${usuario.user_name}', ${estaConvocado})">
@@ -448,6 +461,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         } catch (err) {
             console.error("Error al cargar panel de Admin:", err);
+            mostrarNotificacion("No se pudieron cargar los datos del panel. Reintentá recargando la página.", "error");
         }
     }
 
@@ -465,12 +479,24 @@ document.addEventListener("DOMContentLoaded", async () => {
             const rol = rolSelect ? rolSelect.value : "mozo";
 
             try {
+                // Creamos el usuario sin contraseña en texto plano, y después le
+                // fijamos la contraseña con la función que la hashea del lado del
+                // servidor.
                 const { error } = await _supabase
                     .from('usuarios')
-                    .insert([{ user_name: username, nombre_real: nombre, pass: password, rol: rol }]);
+                    .insert([{ user_name: username, nombre_real: nombre, rol: rol }]);
 
                 if (error) {
                     mostrarNotificacion(`Error de Supabase: ${error.message}`, "error");
+                    return;
+                }
+
+                const { error: errorPass } = await _supabase
+                    .rpc('actualizar_password', { p_user_name: username, p_nueva_pass: password });
+
+                if (errorPass) {
+                    mostrarNotificacion(`El usuario se creó, pero no se pudo fijar la contraseña: ${errorPass.message}`, "error");
+                    cargarPanelAdmin();
                     return;
                 }
 

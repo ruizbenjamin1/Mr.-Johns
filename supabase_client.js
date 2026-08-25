@@ -5,6 +5,22 @@ const SUPABASE_KEY = "sb_publishable_j_IpAMVeeNy6U6kNN11FyA_YyjZiFzc";
 // Inicializamos el cliente global de Supabase
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// === ESCAPE DE TEXTO PARA HTML (evita inyección de código) ===
+// Cualquier texto que haya escrito el personal (por ejemplo las notas de la
+// agenda semanal) y que después se muestra armando HTML a mano con innerHTML
+// tiene que pasar por acá antes. Si no, alguien podría escribir algo como
+// "<img src=x onerror=...>" en sus notas y ese código se ejecutaría en el
+// navegador de quien abra el panel de administración.
+function escaparHTML(texto) {
+    if (texto === null || texto === undefined) return '';
+    return String(texto)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Formatea una fecha en YYYY-MM-DD usando componentes LOCALES (sin pasar por UTC,
 // para evitar que horarios nocturnos "corran" la fecha al día siguiente)
 function formatearFechaLocal(fecha) {
