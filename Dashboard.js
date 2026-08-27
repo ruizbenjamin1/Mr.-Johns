@@ -449,21 +449,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     let intervaloCooldownInicial = null;
 
     // El progreso de stock se guarda en Supabase (tabla stock_progreso), asociado
-    // a la cuenta -no al dispositivo- así no se pierde si cambia de celular o se
-    // borra el caché a mitad de un conteo.
-    async function cargarProgresoStockGuardado() {
+    // a la BARRA/sector -no a la cuenta ni al dispositivo- así cualquier bartender
+    // convocado a esa barra puede seguir el conteo que empezó otro compañero (uno
+    // carga el Inicial, otro el Final, o lo termina cualquiera del mismo sector).
+    const CLAVE_ULTIMA_BARRA = "ultimaBarraStockDispositivo";
+
+    async function cargarProgresoStockGuardado(barra) {
+        if (!barra) return;
         try {
-            const { data, error } = await _supabase.rpc('obtener_stock_progreso', { p_token: obtenerTokenSesion() });
+            const { data, error } = await _supabase.rpc('obtener_stock_progreso', { p_token: obtenerTokenSesion(), p_barra: barra });
             if (error) throw error;
             const datos = (data && data.length > 0) ? data[0] : null;
             if (!datos) return;
 
             if (datos.valores) {
                 Object.assign(valoresStockManual, datos.valores);
-            }
-            if (datos.barra) {
-                const selectBarra = document.getElementById("select-barra");
-                if (selectBarra) selectBarra.value = datos.barra;
             }
             if (datos.responsable) {
                 const inputResponsable = document.getElementById("input-nombre-stock");
@@ -478,6 +478,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    // Al elegir/cambiar de barra: se descarta lo que había en pantalla (era de
+    // otra barra) y se trae el progreso compartido de la barra recién elegida.
+    async function cambiarBarraSeleccionada() {
+        const selectBarra = document.getElementById("select-barra");
+        const barra = selectBarra ? selectBarra.value : "";
+
+        Object.keys(valoresStockManual).forEach(clave => delete valoresStockManual[clave]);
+        estadoStockEnviosLocal.inicialEnviado = false;
+        estadoStockEnviosLocal.timestampInicial = null;
+
+        if (barra) {
+            localStorage.setItem(CLAVE_ULTIMA_BARRA, barra);
+            await cargarProgresoStockGuardado(barra);
+        } else {
+            localStorage.removeItem(CLAVE_ULTIMA_BARRA);
+        }
+
+        renderizarStock(listaStockGlobal);
+        actualizarEstadoBotonesStock();
+    }
+
     // Debounced: el input de la tabla de stock dispara un evento por cada
     // tecla, y no tiene sentido pegarle a la red esa cantidad de veces.
     let temporizadorGuardadoStock = null;
@@ -485,11 +506,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         clearTimeout(temporizadorGuardadoStock);
         temporizadorGuardadoStock = setTimeout(async () => {
             const selectBarra = document.getElementById("select-barra");
+            const barra = selectBarra ? selectBarra.value : "";
+            if (!barra) return; // sin barra elegida todavía, no hay dónde guardar
+
             const inputResponsable = document.getElementById("input-nombre-stock");
             try {
                 await _supabase.rpc('guardar_stock_progreso', {
                     p_token: obtenerTokenSesion(),
-                    p_barra: selectBarra ? selectBarra.value : "",
+                    p_barra: barra,
                     p_responsable: inputResponsable ? inputResponsable.value : "",
                     p_valores: valoresStockManual,
                     p_inicial_enviado: estadoStockEnviosLocal.inicialEnviado,
@@ -577,7 +601,15 @@ document.addEventListener("DOMContentLoaded", async () => {
             tabBebida.show();
         }
 
-        await cargarProgresoStockGuardado();
+        // Como recordatorio de comodidad (no como fuente de verdad -esa vive en
+        // Supabase, compartida por barra-) se preselecciona la última barra que
+        // se usó desde este dispositivo, para no tener que elegirla de nuevo.
+        const selectBarraInicial = document.getElementById("select-barra");
+        const ultimaBarra = localStorage.getItem(CLAVE_ULTIMA_BARRA);
+        if (selectBarraInicial && ultimaBarra && [...selectBarraInicial.options].some(o => o.value === ultimaBarra)) {
+            selectBarraInicial.value = ultimaBarra;
+            await cargarProgresoStockGuardado(ultimaBarra);
+        }
         renderizarStock(listaStockGlobal);
         actualizarEstadoBotonesStock();
     } else {
@@ -717,7 +749,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const selectBarraEl = document.getElementById("select-barra");
-    if (selectBarraEl) selectBarraEl.addEventListener("change", guardarProgresoStockEnStorage);
+    if (selectBarraEl) selectBarraEl.addEventListener("change", cambiarBarraSeleccionada);
 
     const inputResponsableEl = document.getElementById("input-nombre-stock");
     if (inputResponsableEl) inputResponsableEl.addEventListener("input", guardarProgresoStockEnStorage);
@@ -805,7 +837,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 await enviarConRespaldo(URL_GOOGLE_SHEET, { modo: "final", filas: registrosFinal }, CLAVE_RESPALDO_STOCK_FINAL);
 
                 mostrarNotificacion("Planilla enviada. Revisá la planilla para confirmar que se cerró.", "exito");
-                await _supabase.rpc('limpiar_stock_progreso', { p_token: obtenerTokenSesion() });
+                await _supabase.rpc('limpiar_stock_progreso', { p_token: obtenerTokenSesion(), p_barra: barra });
                 setTimeout(() => { window.location.reload(); }, 1500);
             } catch (err) {
                 mostrarNotificacion("Error al enviar el Final. Se guardó un respaldo para reintentar.", "error");
