@@ -175,11 +175,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
         });
 
+        const semanaDeLaAgenda = agendaPropia && agendaPropia.updated_at ? obtenerLunesDeFecha(agendaPropia.updated_at) : null;
+        const agendaVigenteEstaSemana = semanaDeLaAgenda === semanaActualStr;
+
         const inputObs = document.getElementById("observaciones");
         if (inputObs) {
-            const semanaDeLaAgenda = agendaPropia && agendaPropia.updated_at ? obtenerLunesDeFecha(agendaPropia.updated_at) : null;
-            const notaVigente = semanaDeLaAgenda === semanaActualStr;
-            inputObs.value = notaVigente ? (agendaPropia.observaciones || "") : "";
+            inputObs.value = agendaVigenteEstaSemana ? (agendaPropia.observaciones || "") : "";
+        }
+
+        // Recordatorio: si todavía no guardó la disponibilidad de esta semana, se lo avisamos
+        const avisoAgendaPendiente = document.getElementById("aviso-agenda-pendiente");
+        if (avisoAgendaPendiente) {
+            avisoAgendaPendiente.classList.toggle("d-none", agendaVigenteEstaSemana);
         }
 
         actualizarBadgesVisuales();

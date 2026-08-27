@@ -150,6 +150,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const nombreEditado = document.getElementById(`edit-bname-${usernameOriginal}`).value.trim();
         const usuarioEditado = document.getElementById(`edit-buser-${usernameOriginal}`).value.trim().toLowerCase();
         const passEditada = document.getElementById(`edit-bpass-${usernameOriginal}`).value;
+        const telefonoEditado = document.getElementById(`edit-btelefono-${usernameOriginal}`).value.trim();
         const rolEditado = document.getElementById(`edit-brole-${usernameOriginal}`).value;
 
         try {
@@ -164,7 +165,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 p_username_original: usernameOriginal,
                 p_nombre_real: nombreEditado,
                 p_user_name_nuevo: usuarioEditado,
-                p_rol: rolEditado
+                p_rol: rolEditado,
+                p_telefono: telefonoEditado || null
             });
 
             if (error) throw error;
@@ -322,6 +324,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 }
             }
 
+            recalcularTotalPropinaBarras();
             mostrarNotificacion("Enviado. Revisá la planilla para confirmar que llegó. Las propinas se reiniciaron a $0.", "exito");
 
         } catch (err) {
@@ -331,11 +334,27 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
+    // Suma en vivo lo que se ve en pantalla (no pega a la base): se recalcula
+    // al renderizar el panel y cada vez que alguien toca un input de propina.
+    function recalcularTotalPropinaBarras() {
+        const total = [...document.querySelectorAll('.input-propina-barra')]
+            .reduce((acc, input) => acc + (Number(input.value) || 0), 0);
+        const elementoTotal = document.getElementById('total-propina-barras');
+        if (elementoTotal) elementoTotal.innerText = total.toLocaleString('es-AR');
+    }
+
+    const tablaPropinasBodyEl = document.getElementById('tabla-propinas-sectores-body');
+    if (tablaPropinasBodyEl) {
+        tablaPropinasBodyEl.addEventListener('input', (e) => {
+            if (e.target.classList.contains('input-propina-barra')) recalcularTotalPropinaBarras();
+        });
+    }
+
     // === 4. CARGA ASÍNCRONA DE DATOS ===
     async function cargarPanelJefeBarra() {
         try {
             const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
-                _supabase.from('usuarios_public').select('user_name, nombre_real, rol'),
+                _supabase.from('usuarios_public').select('user_name, nombre_real, rol, telefono'),
                 _supabase.from('agendas').select('*'),
                 // Filtrado por semana actual: evita que una convocatoria vieja del
                 // mismo día se mezcle con la de hoy.
@@ -374,7 +393,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             <td>
                                 <div class="input-group input-group-sm mx-auto" style="max-width: 200px;">
                                     <span class="input-group-text bg-dark text-warning border-secondary">$</span>
-                                    <input type="number" class="form-control bg-dark text-light border-secondary text-center" value="0" onchange="guardarPropinaBarra('${barra}', this.value)">
+                                    <input type="number" class="form-control bg-dark text-light border-secondary text-center input-propina-barra" value="0" onchange="guardarPropinaBarra('${barra}', this.value)">
                                 </div>
                             </td>
                         </tr>
@@ -397,6 +416,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-bname-${usuario.user_name}" value="${escaparHTML(usuario.nombre_real || '')}"></td>
                             <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center fw-bold text-info" id="edit-buser-${usuario.user_name}" value="${escaparHTML(usuario.user_name)}"></td>
                             <td><input type="password" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-bpass-${usuario.user_name}" placeholder="Dejar vacío para no cambiar" value="" autocomplete="new-password"></td>
+                            <td><input type="tel" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-btelefono-${usuario.user_name}" placeholder="WhatsApp" value="${escaparHTML(usuario.telefono || '')}"></td>
                             <td>
                                 <select class="form-select form-select-sm bg-dark text-light border-secondary text-center" id="edit-brole-${usuario.user_name}" disabled>
                                     <option value="bartender" selected>Bartender</option>
@@ -436,6 +456,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 optionsHTML += `<option value="${s}" ${s === sectorActual ? 'selected' : ''}>${s}</option>`;
                             });
 
+                            const mensajeWhatsApp = `Hola ${usuario.nombre_real || usuario.user_name}! Te convocamos para trabajar el ${diaSeleccionado} en la barra ${sectorActual}. Cualquier consulta escribinos. - Mr. Johns`;
+                            const linkWhatsApp = construirEnlaceWhatsApp(usuario.telefono, mensajeWhatsApp);
+                            const botonWhatsApp = linkWhatsApp
+                                ? `<a href="${linkWhatsApp}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success py-1 px-2" title="Avisar por WhatsApp"><i class="bi bi-whatsapp"></i></a>`
+                                : `<span class="btn btn-sm btn-outline-secondary py-1 px-2 disabled" title="Este usuario no tiene teléfono cargado"><i class="bi bi-whatsapp"></i></span>`;
+
                             contenedorEquipoFinal.innerHTML += `
                                 <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-info p-2" style="background-color: #0d1f2d !important;">
                                     <div class="fw-bold text-info me-3">
@@ -450,6 +476,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                             </select>
                                         </div>
 
+                                        ${botonWhatsApp}
                                         <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="alternarConvocatoriaBartender('${usuario.user_name}', true)" title="Quitar">
                                             <i class="bi bi-person-dash"></i>
                                         </button>
@@ -481,6 +508,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             renderizarGrillaSemanal(usuariosDB, agendasDB, convocadosDB, (rol) => rol === 'bartender', 'grilla-semanal-bartenders');
+            recalcularTotalPropinaBarras();
 
         } catch (err) {
             console.error("Error al cargar panel de Jefe de Barra:", err);
@@ -498,6 +526,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const nombre = document.getElementById("new-bartender-name").value.trim();
             const username = document.getElementById("new-bartender-username").value.trim().toLowerCase();
             const password = document.getElementById("new-bartender-password").value;
+            const telefono = document.getElementById("new-bartender-telefono").value.trim();
 
             try {
                 // Alta y contraseña se fijan en una sola llamada al servidor (que
@@ -507,7 +536,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     p_user_name: username,
                     p_nombre_real: nombre,
                     p_rol: "bartender",
-                    p_password: password
+                    p_password: password,
+                    p_telefono: telefono || null
                 });
 
                 if (error) {

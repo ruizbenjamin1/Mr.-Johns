@@ -191,6 +191,16 @@ function seleccionarDiaDesdeGrilla(dia) {
 }
 window.seleccionarDiaDesdeGrilla = seleccionarDiaDesdeGrilla;
 
+// === AVISO POR WHATSAPP (link "click to send", sin costo ni cuentas nuevas) ===
+// No manda nada solo: abre WhatsApp con el mensaje ya escrito para que quien
+// convoca lo revise y lo mande con un toque. Devuelve null si no hay teléfono
+// cargado (para poder ocultar el botón en ese caso).
+function construirEnlaceWhatsApp(telefono, mensaje) {
+    const soloDigitos = (telefono || "").replace(/\D/g, "");
+    if (!soloDigitos) return null;
+    return `https://wa.me/${soloDigitos}?text=${encodeURIComponent(mensaje)}`;
+}
+
 // === RESPALDO DE ENVÍOS A GOOGLE SHEETS (los webhooks usan mode:"no-cors") ===
 // Con "no-cors" el navegador NUNCA puede leer si Google Sheets realmente
 // recibió y proceso el POST -es una limitación del lado del Apps Script

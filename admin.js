@@ -187,6 +187,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const nombreEditado = document.getElementById(`edit-name-${usernameOriginal}`).value.trim();
         const usuarioEditado = document.getElementById(`edit-user-${usernameOriginal}`).value.trim().toLowerCase();
         const passEditada = document.getElementById(`edit-pass-${usernameOriginal}`).value;
+        const telefonoEditado = document.getElementById(`edit-telefono-${usernameOriginal}`).value.trim();
         const rolEditado = document.getElementById(`edit-role-${usernameOriginal}`).value;
 
         if (!usuarioEditado) {
@@ -206,7 +207,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 p_username_original: usernameOriginal,
                 p_nombre_real: nombreEditado,
                 p_user_name_nuevo: usuarioEditado,
-                p_rol: rolEditado
+                p_rol: rolEditado,
+                p_telefono: telefonoEditado || null
             });
 
             if (error) throw error;
@@ -347,12 +349,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
+    // Suma en vivo lo que se ve en pantalla (no pega a la base): se recalcula
+    // al renderizar el panel y cada vez que alguien toca un input de propina.
+    function recalcularTotalPropinaMozos() {
+        const total = [...document.querySelectorAll('.input-propina-mozo')]
+            .reduce((acc, input) => acc + (Number(input.value) || 0), 0);
+        const elementoTotal = document.getElementById('total-propina-mozos');
+        if (elementoTotal) elementoTotal.innerText = total.toLocaleString('es-AR');
+    }
+
+    const contenedorEquipoFinalEl = document.getElementById('equipo-convocado-final');
+    if (contenedorEquipoFinalEl) {
+        contenedorEquipoFinalEl.addEventListener('input', (e) => {
+            if (e.target.classList.contains('input-propina-mozo')) recalcularTotalPropinaMozos();
+        });
+    }
+
     async function cargarPanelAdmin() {
         try {
             const [resUsuarios, resAgendas, resConvocados] = await Promise.all([
                 // Se lee desde la vista "usuarios_public": no incluye pass_hash, y la
                 // tabla real "usuarios" ya no es accesible directo desde el navegador.
-                _supabase.from('usuarios_public').select('user_name, nombre_real, rol'),
+                _supabase.from('usuarios_public').select('user_name, nombre_real, rol, telefono'),
                 _supabase.from('agendas').select('*'),
                 // Filtrado por semana actual: evita que una convocatoria vieja del
                 // mismo día (ej. "Viernes" de hace un mes) se mezcle con la de hoy.
@@ -397,6 +415,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-name-${usuario.user_name}" value="${escaparHTML(usuario.nombre_real || '')}"></td>
                             <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center fw-bold text-warning" id="edit-user-${usuario.user_name}" value="${escaparHTML(usuario.user_name)}"></td>
                             <td><input type="password" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-pass-${usuario.user_name}" placeholder="Dejar vacío para no cambiar" value="" autocomplete="new-password"></td>
+                            <td><input type="tel" class="form-control form-control-sm bg-dark text-light border-secondary text-center" id="edit-telefono-${usuario.user_name}" placeholder="WhatsApp" value="${escaparHTML(usuario.telefono || '')}"></td>
                             <td>
                                 <select class="form-select form-select-sm bg-dark text-light border-secondary text-center" id="edit-role-${usuario.user_name}">
                                     <option value="mozo" ${usuario.rol === 'mozo' ? 'selected' : ''}>Mozo</option>
@@ -438,6 +457,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                             let optionsHTML = "";
                             opcionesSectores.forEach(s => optionsHTML += `<option value="${s}" ${s === sectorActual ? 'selected' : ''}>${s}</option>`);
 
+                            const mensajeWhatsApp = `Hola ${usuario.nombre_real || usuario.user_name}! Te convocamos para trabajar el ${diaSeleccionado} en el sector ${sectorActual}. Cualquier consulta escribinos. - Mr. Johns`;
+                            const linkWhatsApp = construirEnlaceWhatsApp(usuario.telefono, mensajeWhatsApp);
+                            const botonWhatsApp = linkWhatsApp
+                                ? `<a href="${linkWhatsApp}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-success py-1 px-2" title="Avisar por WhatsApp"><i class="bi bi-whatsapp"></i></a>`
+                                : `<span class="btn btn-sm btn-outline-secondary py-1 px-2 disabled" title="Este usuario no tiene teléfono cargado"><i class="bi bi-whatsapp"></i></span>`;
+
                             contenedorEquipoFinal.innerHTML += `
                                 <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-success p-2" style="background-color: #121f15 !important;">
                                     <div class="fw-bold text-success me-3">
@@ -452,8 +477,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                                         </div>
                                         <div class="input-group input-group-sm" style="max-width: 140px;">
                                             <span class="input-group-text bg-dark text-warning border-secondary"><i class="bi bi-cash"></i></span>
-                                            <input type="number" class="form-control bg-dark text-light border-secondary" placeholder="Propina $" data-user="${usuario.user_name}" value="${propinaActual}" onchange="guardarPropinaMozo('${usuario.user_name}', this.value)">
+                                            <input type="number" class="form-control bg-dark text-light border-secondary input-propina-mozo" placeholder="Propina $" data-user="${usuario.user_name}" value="${propinaActual}" onchange="guardarPropinaMozo('${usuario.user_name}', this.value)">
                                         </div>
+                                        ${botonWhatsApp}
                                         <button class="btn btn-sm btn-outline-danger py-1 px-2" onclick="alternarConvocatoria('${usuario.user_name}', true)" title="Quitar">
                                             <i class="bi bi-person-dash"></i>
                                         </button>
@@ -485,6 +511,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             renderizarGrillaSemanal(usuariosDB, agendasDB, convocadosDB, (rol) => rol === 'mozo', 'grilla-semanal-mozos');
+            recalcularTotalPropinaMozos();
         } catch (err) {
             console.error("Error al cargar panel de Admin:", err);
             mostrarNotificacion("No se pudieron cargar los datos del panel. Reintentá recargando la página.", "error");
@@ -501,6 +528,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const nombre = document.getElementById("new-name").value.trim();
             const username = document.getElementById("new-username").value.trim().toLowerCase();
             const password = document.getElementById("new-password").value;
+            const telefono = document.getElementById("new-telefono").value.trim();
             const rolSelect = document.getElementById("new-role");
             const rol = rolSelect ? rolSelect.value : "mozo";
 
@@ -512,7 +540,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                     p_user_name: username,
                     p_nombre_real: nombre,
                     p_rol: rol,
-                    p_password: password
+                    p_password: password,
+                    p_telefono: telefono || null
                 });
 
                 if (error) {

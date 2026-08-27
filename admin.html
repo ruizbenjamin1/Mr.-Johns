@@ -72,6 +72,12 @@
                 </div>
             </div>
 
+            <div class="text-end mb-2">
+                <span class="badge bg-dark border border-success text-success px-3 py-2 fs-6">
+                    Total propinas del día: $<span id="total-propina-mozos">0</span>
+                </span>
+            </div>
+
             <div id="equipo-convocado-final" class="list-group">
                 <!-- JS inyectará las tarjetas de convocados con sus inputs de sector y propina -->
             </div>
@@ -93,14 +99,17 @@
         <div class="card card-custom p-3 mb-4 rounded-3 shadow-sm">
             <h5 class="fw-bold mb-3 text-light"><i class="bi bi-person-plus-fill me-2"></i>Dar de Alta Nuevo Usuario</h5>
             <form id="formAltaPersonal" class="row g-2">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <input type="text" id="new-name" class="form-control bg-dark text-light border-secondary" placeholder="Nombre" required>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <input type="text" id="new-username" class="form-control bg-dark text-light border-secondary" placeholder="Usuario" required>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <input type="text" id="new-password" class="form-control bg-dark text-light border-secondary" placeholder="Contraseña" required>
+                </div>
+                <div class="col-md-2">
+                    <input type="tel" id="new-telefono" class="form-control bg-dark text-light border-secondary" placeholder="WhatsApp (ej 5491122334455)">
                 </div>
                 <div class="col-md-2">
                     <select id="new-role" class="form-select bg-dark text-light border-secondary">
@@ -164,6 +173,7 @@
                                     <th scope="col">Nombre Real</th>
                                     <th scope="col">Usuario</th>
                                     <th scope="col">Contraseña</th>
+                                    <th scope="col">Teléfono</th>
                                     <th scope="col">Rol</th>
                                     <th scope="col">Acción</th>
                                 </tr>
@@ -184,6 +194,7 @@
                                     <th scope="col">Nombre Real</th>
                                     <th scope="col">Usuario</th>
                                     <th scope="col">Contraseña</th>
+                                    <th scope="col">Teléfono</th>
                                     <th scope="col">Rol</th>
                                     <th scope="col">Acción</th>
                                 </tr>
@@ -204,6 +215,7 @@
                                     <th scope="col">Nombre Real</th>
                                     <th scope="col">Usuario</th>
                                     <th scope="col">Contraseña</th>
+                                    <th scope="col">Teléfono</th>
                                     <th scope="col">Rol</th>
                                     <th scope="col">Acción</th>
                                 </tr>
