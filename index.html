@@ -2,6 +2,15 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <!-- Aplica el tema guardado ANTES de pintar la página, para que no se vea
+         un flash del tema incorrecto al cargar. -->
+    <script>
+        (function () {
+            if (localStorage.getItem('temaMrJohns') === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mr. Johns</title>
     <!-- Bootstrap 5 CSS -->
@@ -31,25 +40,22 @@
         .logo-img {
             max-width: 200px;
             height: auto;
-            /* 1. Invertimos para que las letras sean blancas y el fondo negro */
-            filter: invert(1) brightness(1.2); 
-            /* 2. SOLUCIÓN: Hace que el fondo negro del cuadrado sea invisible y se fusione con la tarjeta */
-            mix-blend-mode: screen; 
+            /* El filtro/blend que invierte el logo a blanco en tema oscuro vive
+               en estilos_pro.css (var(--logo-filter)/var(--logo-blend)), así
+               reacciona solo al cambiar de tema. */
             transition: transform 0.3s ease;
         }
 
         .card-login:hover .logo-img {
             transform: scale(1.03);
         }
-
-        /* Forzamos el color de los placeholders para que se lean bien en la oscuridad */
-        .form-control::placeholder {
-            color: #6c757d !important;
-            opacity: 1;
-        }
     </style>
 </head>
-<body class="d-flex align-items-center justify-content-center vh-100" style="background: radial-gradient(circle at center, #14141f 0%, #0b0b0e 100%) !important;">
+<body class="d-flex align-items-center justify-content-center vh-100 fondo-radial">
+
+    <button id="btn-toggle-tema" type="button" class="btn btn-sm btn-toggle-tema position-fixed top-0 end-0 m-3" title="Cambiar tema">
+        <i class="bi bi-sun-fill"></i>
+    </button>
 
     <div class="container d-flex justify-content-center px-3">
         <div class="card card-custom p-4 shadow-lg card-login">
@@ -58,8 +64,7 @@
                 <div class="logo-container">
                     <img src="logo.png" alt="Mr. John's Logo" class="logo-img">
                 </div>
-                <!-- Cambiado a text-light-50 para máxima legibilidad -->
-                <p class="text-white-50 small">Ingresá tus credenciales para acceder al sistema</p>
+                <p class="text-muted small">Ingresá tus credenciales para acceder al sistema</p>
             </div>
             
             <!-- Formulario del Login -->

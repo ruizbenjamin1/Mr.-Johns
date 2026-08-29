@@ -26,6 +26,7 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
 const semanaActualStr = obtenerLunesSemanaActual();
 
 document.addEventListener("DOMContentLoaded", async () => {
+    inicializarToggleTema("btn-toggle-tema");
 
     // === 1. IDENTIFICACIÓN DE USUARIO Y CONTROL DE SEGURIDAD ===
     const usuarioActivo = sessionStorage.getItem("usuarioLogueado");
@@ -690,7 +691,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         contenedor.innerHTML = "";
         comidas.forEach(plato => {
             contenedor.innerHTML += `
-                <div class="card card-custom p-3 mb-2 rounded-3" style="background-color: #16191c !important;">
+                <div class="card card-custom tarjeta-carta p-3 mb-2 rounded-3">
                     <h6 class="fw-bold mb-1 text-light">${plato.nombre}</h6>
                     <p class="text-muted small mb-2">${plato.descripcion}</p>
                     ${plato.etiqueta ? `<div><span class="badge bg-danger bg-opacity-25 text-danger border border-danger badge-allergen">${plato.etiqueta}</span></div>` : ''}
@@ -704,7 +705,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         contenedor.innerHTML = "";
         bebidas.forEach(bebida => {
             contenedor.innerHTML += `
-                <div class="card card-custom p-3 mb-2 rounded-3" style="background-color: #16191c !important;">
+                <div class="card card-custom tarjeta-carta p-3 mb-2 rounded-3">
                     <h6 class="fw-bold mb-1 text-light">${bebida.nombre}</h6>
                     <p class="text-muted small mb-2">${bebida.descripcion}</p>
                 </div>`;
@@ -721,7 +722,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 categoriaActual = item.categoria;
                 contenedor.innerHTML += `
                     <tr class="table-secondary text-dark fw-bold">
-                        <td colspan="3" class="text-start ps-3 text-uppercase" style="background-color: #2a2f35; color: #ffc107 !important;">&mdash; ${categoriaActual} &mdash;</td>
+                        <td colspan="3" class="text-start ps-3 text-uppercase fila-categoria-stock">&mdash; ${categoriaActual} &mdash;</td>
                     </tr>`;
             }
             const guardado = valoresStockManual[item.nombre] || { inicial: "0", final: "0" };

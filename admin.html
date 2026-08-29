@@ -2,6 +2,15 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <!-- Aplica el tema guardado ANTES de pintar la página, para que no se vea
+         un flash del tema incorrecto al cargar. -->
+    <script>
+        (function () {
+            if (localStorage.getItem('temaMrJohns') === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Admin - Panel de Control</title>
     <!-- Bootstrap 5 CSS -->
@@ -27,10 +36,15 @@
             </div>
             <!-- Logout: siempre visible. En celular queda solo el ícono (para no ocupar -->
             <!-- lugar), en pantallas más grandes se ve también el texto "Cerrar Sesión". -->
-            <button id="btn-logout" class="btn btn-outline-danger btn-sm fw-bold">
-                <i class="bi bi-box-arrow-right"></i>
-                <span class="d-none d-md-inline ms-1">Cerrar Sesión</span>
-            </button>
+            <div class="d-flex align-items-center gap-2">
+                <button id="btn-toggle-tema" type="button" class="btn btn-sm btn-toggle-tema" title="Cambiar tema">
+                    <i class="bi bi-sun-fill"></i>
+                </button>
+                <button id="btn-logout" class="btn btn-outline-danger btn-sm fw-bold">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span class="d-none d-md-inline ms-1">Cerrar Sesión</span>
+                </button>
+            </div>
         </div>
     </nav>
 

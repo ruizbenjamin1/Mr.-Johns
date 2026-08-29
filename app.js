@@ -23,6 +23,8 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    inicializarToggleTema("btn-toggle-tema");
+
     const formLogin = document.getElementById("formLogin");
 
     if (formLogin) {

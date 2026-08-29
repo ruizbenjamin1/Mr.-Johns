@@ -201,6 +201,33 @@ function construirEnlaceWhatsApp(telefono, mensaje) {
     return `https://wa.me/${soloDigitos}?text=${encodeURIComponent(mensaje)}`;
 }
 
+// === TOGGLE DE TEMA (oscuro/claro) ===
+// El tema ya se aplica antes de pintar la página (script inline en el <head>
+// de cada HTML, lee lo mismo de localStorage). Esto solo conecta el botón
+// para poder cambiarlo y guardarlo.
+function inicializarToggleTema(botonId) {
+    const boton = document.getElementById(botonId);
+    if (!boton) return;
+
+    const actualizarIcono = () => {
+        const esClaro = document.documentElement.getAttribute('data-theme') === 'light';
+        boton.innerHTML = esClaro ? '<i class="bi bi-moon-stars-fill"></i>' : '<i class="bi bi-sun-fill"></i>';
+    };
+    actualizarIcono();
+
+    boton.addEventListener('click', () => {
+        const esClaroAhora = document.documentElement.getAttribute('data-theme') === 'light';
+        if (esClaroAhora) {
+            document.documentElement.removeAttribute('data-theme');
+            localStorage.setItem('temaMrJohns', 'dark');
+        } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+            localStorage.setItem('temaMrJohns', 'light');
+        }
+        actualizarIcono();
+    });
+}
+
 // === RESPALDO DE ENVÍOS A GOOGLE SHEETS (los webhooks usan mode:"no-cors") ===
 // Con "no-cors" el navegador NUNCA puede leer si Google Sheets realmente
 // recibió y proceso el POST -es una limitación del lado del Apps Script

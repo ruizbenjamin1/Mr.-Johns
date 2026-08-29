@@ -5,13 +5,46 @@
 /* Importamos una tipografía más moderna y limpia */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap');
 
+/* ==========================================
+   TEMA (oscuro por defecto, claro con [data-theme="light"])
+   Todo el sitio se armó originalmente solo para oscuro con colores
+   fijos repetidos en varios lugares; acá quedan centralizados en
+   variables para que el botón de tema (sol/luna) pueda cambiarlos.
+   ========================================== */
 :root {
     --bg-principal: #0b0b0e;        /* Un negro profundo con un toque azulado/espacial */
     --bg-card: #14141c;             /* Gris oscuro azulado para las tarjetas */
     --bg-input: #1b1b26;            /* Color para los campos de texto */
     --border-color: #262636;        /* Bordes ultra finos y sutiles */
 
-    /* Paleta de Colores de Acentos (Brillantes pero elegantes) */
+    --texto-base: #f1f2f6;          /* Texto general del body */
+    --texto-fuerte: #ffffff;        /* Encabezados de tabla, nombres, primera columna */
+    --texto-muted: #cbd5e1;         /* Textos aclaratorios / secundarios */
+    --texto-placeholder: #94a3b8;   /* Texto de ejemplo dentro de inputs */
+
+    --navbar-bg: rgba(20, 20, 28, 0.8);
+    --navbar-bg-movil: rgba(20, 20, 28, 0.96);
+    --list-item-bg: #181824;        /* Filas de listas (convocados, disponibilidad) */
+    --panel-barra-bg: #171722;      /* Bloques grandes del panel de Jefe de Barra */
+    --tarjeta-carta-bg: #16191c;    /* Tarjetas de comidas/bebidas en la Carta */
+
+    --tabla-th-bg: #1e1e2f;
+    --tabla-td-bg: #14141f;
+    --tabla-border: #2a2a3a;
+
+    --item-convocado-mozo-bg: #121f15;      /* Verdoso: mozo ya convocado */
+    --item-convocado-bartender-bg: #0d1f2d; /* Azulado: bartender ya convocado */
+
+    --sabado-bg: #2c2414;
+    --sabado-texto: #fbc531;
+
+    --stock-categoria-bg: #2a2f35;
+    --stock-categoria-texto: #ffc107;
+
+    --fondo-radial-1: #14141f;
+    --fondo-radial-2: #0b0b0e;
+
+    /* Paleta de Colores de Acentos (Brillantes pero elegantes) - no cambian entre temas */
     --oro-premium: #f39c12;         /* Un dorado ámbar corporativo */
     --oro-glow: rgba(243, 156, 18, 0.15);
     --cyan-barra: #00e5ff;         /* Cyan eléctrico para el jefe de barra */
@@ -21,15 +54,88 @@
     --success-pro: #00e676;
     --danger-pro: #ff1744;
     --warning-pro: #ffea00;
+
+    /* Logo: en oscuro se invierte a blanco y se funde con la tarjeta */
+    --logo-filter: invert(1) brightness(1.2);
+    --logo-blend: screen;
+
+    /* Color de TEXTO para .text-warning/.text-info (separado de --oro-premium/
+       --cyan-barra, que se usan para fondos de botones y quedan igual en los
+       dos temas). En oscuro son iguales a los de acento; en claro se oscurecen
+       para que se puedan leer sobre fondo blanco. */
+    --texto-warning: var(--oro-premium);
+    --texto-info: var(--cyan-barra);
+}
+
+:root[data-theme="light"] {
+    --bg-principal: #f3f4f7;
+    --bg-card: #ffffff;
+    --bg-input: #f1f3f6;
+    --border-color: #dde1e6;
+
+    --texto-base: #1c1f26;
+    --texto-fuerte: #0b0d10;
+    --texto-muted: #5b6472;
+    --texto-placeholder: #8993a4;
+
+    --navbar-bg: rgba(255, 255, 255, 0.85);
+    --navbar-bg-movil: rgba(255, 255, 255, 0.95);
+    --list-item-bg: #f6f7f9;
+    --panel-barra-bg: #ffffff;
+    --tarjeta-carta-bg: #fafbfc;
+
+    --tabla-th-bg: #eef1f5;
+    --tabla-td-bg: #ffffff;
+    --tabla-border: #e3e7ec;
+
+    --item-convocado-mozo-bg: #e8f7ec;
+    --item-convocado-bartender-bg: #e6f7fb;
+
+    --sabado-bg: #fff4d6;
+    --sabado-texto: #9a6b00;
+
+    --stock-categoria-bg: #eef1f5;
+    --stock-categoria-texto: #9a6b00;
+
+    --fondo-radial-1: #ffffff;
+    --fondo-radial-2: #eef0f3;
+
+    /* En claro el logo ya se ve bien tal cual, sin invertir ni fundir */
+    --logo-filter: none;
+    --logo-blend: normal;
+
+    /* Versiones oscurecidas de los acentos para que el TEXTO se pueda leer
+       sobre fondo blanco (los fondos de botones siguen con el color brillante
+       original, definido arriba en --oro-premium/--cyan-barra). */
+    --texto-warning: #a3660a;
+    --texto-info: #0e7490;
 }
 
 /* Aplicamos la nueva tipografía y suavizado general */
 body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     background-color: var(--bg-principal);
-    color: #f1f2f6;
+    color: var(--texto-base);
     -webkit-font-smoothing: antialiased;
     letter-spacing: -0.01em;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Fondo radial de las pantallas de login / Jefe de Barra (antes venía como
+   estilo inline en cada HTML, ahora es una clase para que reaccione al tema) */
+.fondo-radial {
+    background: radial-gradient(circle at center, var(--fondo-radial-1) 0%, var(--fondo-radial-2) 100%) !important;
+}
+
+/* Botón de cambio de tema (sol/luna) */
+.btn-toggle-tema {
+    background-color: var(--bg-input) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--texto-base) !important;
+    border-radius: 10px !important;
+}
+.btn-toggle-tema:hover {
+    border-color: var(--oro-premium) !important;
 }
 
 /* --- TARJETAS PREMIUM (Efecto Glassmorphism sutil) --- */
@@ -40,22 +146,89 @@ body {
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.2s ease, border-color 0.2s ease;
+    color: var(--texto-fuerte) !important; /* Blanco tiza (o negro en claro) ultra nítido para textos base */
+}
+
+/* Bloques grandes del panel de Jefe de Barra (antes background-color inline por bloque) */
+.panel-bloque-barra {
+    background-color: var(--panel-barra-bg) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+/* Tarjetas de comidas/bebidas en la Carta (antes background-color inline) */
+.tarjeta-carta {
+    background-color: var(--tarjeta-carta-bg) !important;
+}
+
+/* Tarjetas de convocados ya asignados (verdoso para mozo, azulado para bartender) */
+.item-convocado-mozo {
+    background-color: var(--item-convocado-mozo-bg) !important;
+}
+.item-convocado-bartender {
+    background-color: var(--item-convocado-bartender-bg) !important;
+}
+
+/* Fila divisoria de categoría en la planilla de stock */
+.fila-categoria-stock {
+    background-color: var(--stock-categoria-bg) !important;
+    color: var(--stock-categoria-texto) !important;
+}
+
+/* Barra de navegación inferior fija en celular (Dashboard) */
+.barra-inferior-movil {
+    background-color: var(--navbar-bg-movil) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* Logo del login: se invierte a blanco solo en tema oscuro */
+.logo-img {
+    filter: var(--logo-filter);
+    mix-blend-mode: var(--logo-blend);
 }
 
 /* --- TEXTOS CON DEGRADADO (Le da el toque pro) --- */
 .text-warning {
-    color: var(--oro-premium) !important;
+    color: var(--texto-warning) !important;
     font-weight: 700;
 }
 .text-info {
-    color: var(--cyan-barra) !important;
+    color: var(--texto-info) !important;
     font-weight: 700;
+}
+
+/* Muchas plantillas de la app usan las utilidades bg-dark/text-light de
+   Bootstrap asumiendo que el tema siempre iba a ser oscuro (texto blanco
+   fijo). Acá se "reconducen" a la variable de tema dentro de las tarjetas,
+   tablas y listas de la app -sin tocar los badges de color sólido (rojo,
+   etc.) que sí necesitan texto blanco fijo por fuera de estos contenedores-. */
+.card-admin .text-light,
+.card-barra .text-light,
+.card-custom .text-light,
+.list-group-item-custom .text-light,
+.item-convocado-mozo .text-light,
+.item-convocado-bartender .text-light,
+table.table .text-light {
+    color: var(--texto-fuerte) !important;
+}
+
+/* Textos aclaratorios / grises secundarios, en cualquier contenedor de tarjeta */
+.card-admin .text-muted,
+.card-barra .text-muted,
+.card-custom .text-muted,
+.card-admin p.small,
+.card-barra p.small,
+.card-custom p.small,
+label.form-label {
+    color: var(--texto-muted) !important;
+    opacity: 1 !important;
 }
 
 /* --- NAVBARS ULTRA LIMPIAS --- */
 .navbar {
-    background-color: rgba(20, 20, 28, 0.8) !important;
+    background-color: var(--navbar-bg) !important;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border-color) !important;
@@ -97,14 +270,19 @@ body {
 .form-control, .form-select {
     background-color: var(--bg-input) !important;
     border: 1px solid var(--border-color) !important;
-    color: #f1f2f6 !important;
+    color: var(--texto-fuerte) !important;
     border-radius: 10px !important;
     padding: 10px 14px;
+    font-weight: 500;
     transition: all 0.2s ease-in-out;
 }
 .form-control:focus, .form-select:focus {
     border-color: var(--oro-premium) !important;
     box-shadow: 0 0 10px var(--oro-glow) !important;
+}
+.form-control::placeholder {
+    color: var(--texto-placeholder) !important;
+    opacity: 1 !important;
 }
 
 /* Cuando un input/select va pegado a un ícono dentro de un "input-group" (como el
@@ -120,6 +298,9 @@ body {
 }
 .input-group > .input-group-text {
     border-radius: 10px 0 0 10px !important;
+    background-color: var(--bg-input) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--texto-muted) !important;
 }
 
 /* Específico para el panel de barra cuando hace foco */
@@ -129,30 +310,52 @@ body {
 }
 
 /* --- TABLAS ESTILO DASHBOARD MODERNO --- */
-.table-dark-custom, .table-agenda {
-    border-color: var(--border-color) !important;
-}
-.table-dark-custom th, .table-agenda th {
-    background-color: #171724 !important;
-    border-bottom: 2px solid var(--border-color) !important;
+.table-agenda th,
+.table-dark-custom th,
+table.table thead th {
+    background-color: var(--tabla-th-bg) !important;
+    border-bottom: 2px solid var(--tabla-border) !important;
     text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
     padding: 14px !important;
+    color: var(--texto-fuerte) !important;
+    font-weight: 700 !important;
 }
-.table-dark-custom td, .table-agenda td {
-    background-color: var(--bg-card) !important;
-    border-bottom: 1px solid var(--border-color) !important;
+
+.table-agenda td,
+.table-dark-custom td,
+table.table tbody td {
+    background-color: var(--tabla-td-bg) !important;
+    border-bottom: 1px solid var(--tabla-border) !important;
     padding: 14px !important;
+    color: var(--texto-base) !important;
+}
+
+.table-agenda, .table-dark-custom {
+    border-color: var(--tabla-border) !important;
+}
+
+/* Primera columna de las tablas (Nombres de empleados o Días de la semana) */
+.table-agenda tbody td:first-child,
+.table-dark-custom tbody td:first-child,
+table.table tbody td:first-child {
+    color: var(--texto-fuerte) !important;
+    font-weight: 600 !important;
+    text-align: left;
+    padding-left: 20px !important;
 }
 
 /* Resaltado especial del Sábado */
 .table-agenda .sabado-highlight th,
 .table-agenda .sabado-highlight td {
-    background-color: #1f1b13 !important;
+    background-color: var(--sabado-bg) !important;
     border-left: none !important;
     border-right: none !important;
-    color: var(--oro-premium) !important;
+    color: var(--sabado-texto) !important;
+}
+.table-agenda .sabado-highlight td:first-child {
+    color: var(--sabado-texto) !important;
 }
 
 /* --- BADGES (Etiquetas de estado) --- */
@@ -163,17 +366,17 @@ body {
 }
 .badge.bg-secondary {
     background-color: var(--bg-input) !important;
-    color: #a0a0b0 !important;
+    color: var(--texto-muted) !important;
     border: 1px solid var(--border-color) !important;
 }
 
 /* Elementos de la lista de confirmados */
 .list-group-item-custom {
-    background-color: #181824 !important;
+    background-color: var(--list-item-bg) !important;
     border: 1px solid var(--border-color) !important;
     margin-bottom: 8px;
     border-radius: 12px !important;
-    transition: transform 0.2s ease;
+    transition: transform 0.2s ease, background-color 0.2s ease;
 }
 .list-group-item-custom:hover {
     transform: translateX(4px);
@@ -207,94 +410,10 @@ body {
 ::-webkit-scrollbar {
     display: none;
 }
-/* Centrado del contenedor de login con animación de entrada */
-body.vh-100 {
-    background: radial-gradient(circle at center, #14141f 0%, #0b0b0e 100%) !important;
-}
+
 /* ===================================================
-   EDICIÓN ALTA VISIBILIDAD PARA PLANILLAS Y CONTROLES
-   (No afecta la pantalla de Login)
+   DESCRIPCIÓN DE LA CARTA (Ingredientes de tragos y hamburguesas)
    =================================================== */
-
-/* 1. TEXTOS GENERALES, ACORDES Y DESCRIPCIONES ACCESIBLES */
-.card-admin, .card-barra, .card-custom {
-    color: #f8fafc !important; /* Blanco tiza ultra nítido para textos base */
-}
-
-/* Pasamos los textos aclaratorios grises que no se leían a un gris plata bien visible */
-.card-admin .text-muted,
-.card-barra .text-muted,
-.card-custom .text-muted,
-.card-admin p.small,
-.card-barra p.small,
-.card-custom p.small,
-label.form-label {
-    color: #cbd5e1 !important;
-    opacity: 1 !important;
-}
-
-/* 2. CONTRASTE DE ENCABEZADOS Y CELDAS EN TABLAS (Planillas, CRUDs y Agendas) */
-.table-agenda th,
-.table-dark-custom th,
-table.table thead th {
-    background-color: #1e1e2f !important; /* Fondo de títulos un toque más claro */
-    border-bottom: 2px solid #3f3f56 !important;
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    letter-spacing: 0.06em;
-    padding: 14px !important;
-    color: #ffffff !important; /* Blanco puro para "PERSONAL", "PUESTO", "ESTADO", "DÍA" */
-    font-weight: 700 !important;
-}
-
-.table-agenda td,
-.table-dark-custom td,
-table.table tbody td {
-    background-color: #14141f !important; /* Forzamos el fondo oscuro de celda */
-    border-bottom: 1px solid #2a2a3a !important;
-    padding: 14px !important;
-    color: #f8fafc !important; /* Texto interno de celdas en alta claridad */
-}
-
-/* Primera columna de las tablas (Nombres de empleados o Días de la semana) */
-.table-agenda tbody td:first-child,
-.table-dark-custom tbody td:first-child,
-table.table tbody td:first-child {
-    color: #ffffff !important; /* Blanco sólido para resaltar los nombres y días */
-    font-weight: 600 !important;
-    text-align: left;
-    padding-left: 20px !important;
-}
-
-/* 3. RESALTADO PREMIUM DEL SÁBADO (Fila destacada en el Dashboard) */
-.table-agenda .sabado-highlight th,
-.table-agenda .sabado-highlight td {
-    background-color: #2c2414 !important; /* Fondo ámbar oscuro elegante */
-    color: #ffffff !important;
-}
-.table-agenda .sabado-highlight td:first-child {
-    color: #fbc531 !important; /* Dorado brillante exclusivo para la palabra 'Sábado' */
-}
-
-/* 4. MEJORA EN INPUTS DE TEXTO, DESPLEGABLES Y PLACEHOLDERS */
-.card-admin .form-control,
-.card-barra .form-control,
-.card-custom .form-control,
-.card-admin .form-select,
-.card-barra .form-select {
-    color: #ffffff !important; /* Lo que escribís o seleccionás se ve en blanco */
-    font-weight: 500;
-}
-
-/* Gris claro perfectamente visible para los textos de ejemplo dentro de los inputs */
-.card-admin .form-control::placeholder,
-.card-barra .form-control::placeholder,
-.card-custom .form-control::placeholder {
-    color: #94a3b8 !important;
-    opacity: 1 !important;
-}
-
-/* 5. DESCRIPCIÓN DE LA CARTA (Ingredientes de tragos y hamburguesas) */
 #carta-seccion .card-custom p.text-muted {
-    color: #94a3b8 !important; /* Mayor definición para la lectura rápida en el salón */
+    color: var(--texto-muted) !important;
 }

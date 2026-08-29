@@ -29,6 +29,7 @@ function mostrarNotificacion(mensaje, tipo = "exito") {
 const semanaActualStr = obtenerLunesSemanaActual();
 
 document.addEventListener("DOMContentLoaded", async () => {
+    inicializarToggleTema("btn-toggle-tema");
 
     // === 1. VERIFICACIÓN DE SEGURIDAD ===
     const usuarioActivo = sessionStorage.getItem("usuarioLogueado");
@@ -463,7 +464,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 : `<span class="btn btn-sm btn-outline-secondary py-1 px-2 disabled" title="Este usuario no tiene teléfono cargado"><i class="bi bi-whatsapp"></i></span>`;
 
                             contenedorEquipoFinal.innerHTML += `
-                                <div class="list-group-item d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-info p-2" style="background-color: #0d1f2d !important;">
+                                <div class="list-group-item item-convocado-bartender d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-info p-2">
                                     <div class="fw-bold text-info me-3">
                                         <i class="bi bi-check-circle-fill me-1"></i>${escaparHTML(nombreMostrar)}
                                     </div>
