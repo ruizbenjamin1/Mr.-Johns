@@ -201,6 +201,29 @@ function construirEnlaceWhatsApp(telefono, mensaje) {
     return `https://wa.me/${soloDigitos}?text=${encodeURIComponent(mensaje)}`;
 }
 
+// === COOLDOWN GENÉRICO PARA BOTONES (evita mandar el mismo export 2 veces) ===
+// Deshabilita el botón por "duracionMs" y muestra una cuenta regresiva en el
+// texto de "elementoEstado" (si se pasa). Se usa después de un envío exitoso.
+function iniciarCooldownBoton(boton, duracionMs, elementoEstado) {
+    if (!boton) return;
+    const finCooldown = Date.now() + duracionMs;
+    boton.disabled = true;
+
+    const actualizar = () => {
+        const restante = finCooldown - Date.now();
+        if (restante <= 0) {
+            boton.disabled = false;
+            if (elementoEstado) elementoEstado.innerText = "";
+            return;
+        }
+        const minutos = Math.floor(restante / 60000);
+        const segundos = Math.floor((restante % 60000) / 1000).toString().padStart(2, "0");
+        if (elementoEstado) elementoEstado.innerText = `Podés volver a exportar en ${minutos}:${segundos} (para evitar filas duplicadas).`;
+        setTimeout(actualizar, 1000);
+    };
+    actualizar();
+}
+
 // === TOGGLE DE TEMA (oscuro/claro) ===
 // El tema ya se aplica antes de pintar la página (script inline en el <head>
 // de cada HTML, lee lo mismo de localStorage). Esto solo conecta el botón

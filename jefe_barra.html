@@ -183,9 +183,10 @@
 
         <!-- BOTÓN EXPORTAR CENTRADO -->
         <div class="d-flex flex-column align-items-center my-4 py-2 gap-2">
-            <button class="btn btn-info text-dark fw-bold px-4 py-2 shadow" onclick="exportarBarraA_GoogleSheets()">
+            <button id="btn-exportar-barras" class="btn btn-info text-dark fw-bold px-4 py-2 shadow" onclick="exportarBarraA_GoogleSheets()">
                 <i class="bi bi-file-earmark-excel me-2"></i>Exportar
             </button>
+            <p id="estado-cooldown-export-barras" class="text-center text-muted small mb-0"></p>
             <div id="respaldo-pendiente-barras" style="width: 100%; max-width: 500px;"></div>
         </div>
 

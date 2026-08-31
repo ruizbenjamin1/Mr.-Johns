@@ -44,6 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sectoresBarra = ["Vip", "Cantina", "Altillo", "Principal", "Patio", "Evento"];
     const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
     const CLAVE_RESPALDO_EXPORT_BARRAS = "respaldoExportBarras";
+    const COOLDOWN_EXPORT_MS = 2 * 60 * 1000; // 2 minutos, para evitar filas duplicadas por doble click
     verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_BARRAS, 'respaldo-pendiente-barras', URL_WEBHOOK_SHEETS);
 
     // === CONTRASEÑA PARA VER LA TABLA DE BARTENDERS REGISTRADOS ===
@@ -327,6 +328,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             recalcularTotalPropinaBarras();
             mostrarNotificacion("Enviado. Revisá la planilla para confirmar que llegó. Las propinas se reiniciaron a $0.", "exito");
+            iniciarCooldownBoton(document.getElementById('btn-exportar-barras'), COOLDOWN_EXPORT_MS, document.getElementById('estado-cooldown-export-barras'));
 
         } catch (err) {
             console.error("Error al exportar barras:", err);

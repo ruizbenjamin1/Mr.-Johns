@@ -44,6 +44,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio", "Cocina"];
     const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
     const CLAVE_RESPALDO_EXPORT_MOZOS = "respaldoExportMozos";
+    const COOLDOWN_EXPORT_MS = 2 * 60 * 1000; // 2 minutos, para evitar filas duplicadas por doble click
     verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_MOZOS, 'respaldo-pendiente-mozos', URL_WEBHOOK_SHEETS);
 
     // === CONTRASEÑA PARA VER LA TABLA DE PERSONAL REGISTRADO ===
@@ -343,6 +344,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             await enviarConRespaldo(URL_WEBHOOK_SHEETS, { tipo: "staff", filas: filasProcesadas }, CLAVE_RESPALDO_EXPORT_MOZOS);
             mostrarNotificacion("Enviado. Revisá la planilla para confirmar que llegó.", "exito");
             verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_MOZOS, 'respaldo-pendiente-mozos', URL_WEBHOOK_SHEETS);
+            iniciarCooldownBoton(document.getElementById('btn-exportar-mozos'), COOLDOWN_EXPORT_MS, document.getElementById('estado-cooldown-export-mozos'));
         } catch (err) {
             console.error("Error al exportar:", err);
             mostrarNotificacion("Ocurrió un error al exportar los datos. Se guardó un respaldo para reintentar.", "error");

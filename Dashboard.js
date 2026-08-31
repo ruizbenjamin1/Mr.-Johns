@@ -442,7 +442,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         { categoria: "AGUAS", nombre: "Agua tóxica schweppes 375ml" },
         { categoria: "AGUAS", nombre: "Agua tonica schweppes 310ml" },
         { categoria: "AGUAS", nombre: "Agua tónica 1,5L" },
-        { categoria: "AGUAS", nombre: "Agua mineral Benedictino c/gas" }
+        { categoria: "AGUAS", nombre: "Agua mineral Benedictino c/gas" },
+        { categoria: "CONSUMO SOCIOS", nombre: "Whisky Johnnie Walker Swing (Consumo Socios)" },
+        { categoria: "CONSUMO SOCIOS", nombre: "Vodka Absolut Elyx (Consumo Socios)" },
+        { categoria: "CONSUMO SOCIOS", nombre: "Red Bull (Consumo Socios)" },
+        { categoria: "CONSUMO SOCIOS", nombre: "Fernet Branca 750ml (Consumo Socios)" },
+        { categoria: "CONSUMO SOCIOS", nombre: "Vodka Grey Goose (Consumo Socios)" }
     ];
 
     // === STOCK: ENVÍO EN DOS ETAPAS (INICIAL / FINAL), COMBINADAS EN UNA MISMA FILA EN SHEETS ===
@@ -725,12 +730,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                         <td colspan="3" class="text-start ps-3 text-uppercase fila-categoria-stock">&mdash; ${categoriaActual} &mdash;</td>
                     </tr>`;
             }
-            const guardado = valoresStockManual[item.nombre] || { inicial: "0", final: "0" };
+            const guardado = valoresStockManual[item.nombre] || { inicial: "", final: "" };
             contenedor.innerHTML += `
                 <tr data-producto="${item.nombre}">
                     <td class="text-start ps-3 text-light">${item.nombre}</td>
-                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-inicial" min="0" step="0.01" inputmode="decimal" value="${guardado.inicial}"></td>
-                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-final" min="0" step="0.01" inputmode="decimal" value="${guardado.final}"></td>
+                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-inicial" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${guardado.inicial}"></td>
+                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-final" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${guardado.final}"></td>
                 </tr>`;
         });
     }
@@ -745,7 +750,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!tr) return;
             const nombreProducto = tr.getAttribute("data-producto");
             if (!valoresStockManual[nombreProducto]) {
-                valoresStockManual[nombreProducto] = { inicial: "0", final: "0" };
+                valoresStockManual[nombreProducto] = { inicial: "", final: "" };
             }
             if (input.classList.contains("input-stock-inicial")) {
                 valoresStockManual[nombreProducto].inicial = input.value;
@@ -776,7 +781,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             const registrosInicial = listaStockGlobal.map(item => {
-                const guardado = valoresStockManual[item.nombre] || { inicial: "0", final: "0" };
+                const guardado = valoresStockManual[item.nombre] || { inicial: "", final: "" };
                 const inicial = parseFloat(guardado.inicial) || 0;
                 return {
                     semana: semanaActualStr,
@@ -824,7 +829,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             const registrosFinal = listaStockGlobal.map(item => {
-                const guardado = valoresStockManual[item.nombre] || { inicial: "0", final: "0" };
+                const guardado = valoresStockManual[item.nombre] || { inicial: "", final: "" };
                 const inicial = parseFloat(guardado.inicial) || 0;
                 const final = parseFloat(guardado.final) || 0;
                 return {
