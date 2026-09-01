@@ -734,8 +734,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             contenedor.innerHTML += `
                 <tr data-producto="${item.nombre}">
                     <td class="text-start ps-3 text-light">${item.nombre}</td>
-                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-inicial" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${guardado.inicial}"></td>
-                    <td><input type="number" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-final" min="0" step="0.01" inputmode="decimal" placeholder="0" value="${guardado.final}"></td>
+                    <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-inicial" inputmode="decimal" placeholder="0" value="${guardado.inicial}"></td>
+                    <td><input type="text" class="form-control form-control-sm bg-dark text-light border-secondary text-center input-stock-final" inputmode="decimal" placeholder="0" value="${guardado.final}"></td>
                 </tr>`;
         });
     }
@@ -748,6 +748,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const input = e.target;
             const tr = input.closest("tr[data-producto]");
             if (!tr) return;
+            if (input.classList.contains("input-stock-inicial") || input.classList.contains("input-stock-final")) {
+                sanearInputDecimal(input);
+            }
             const nombreProducto = tr.getAttribute("data-producto");
             if (!valoresStockManual[nombreProducto]) {
                 valoresStockManual[nombreProducto] = { inicial: "", final: "" };
@@ -782,7 +785,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const registrosInicial = listaStockGlobal.map(item => {
                 const guardado = valoresStockManual[item.nombre] || { inicial: "", final: "" };
-                const inicial = parseFloat(guardado.inicial) || 0;
+                const inicial = parsearNumeroDecimal(guardado.inicial);
                 return {
                     semana: semanaActualStr,
                     barra: barra,
@@ -830,8 +833,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             const registrosFinal = listaStockGlobal.map(item => {
                 const guardado = valoresStockManual[item.nombre] || { inicial: "", final: "" };
-                const inicial = parseFloat(guardado.inicial) || 0;
-                const final = parseFloat(guardado.final) || 0;
+                const inicial = parsearNumeroDecimal(guardado.inicial);
+                const final = parsearNumeroDecimal(guardado.final);
                 return {
                     semana: semanaActualStr,
                     barra: barra,

@@ -201,6 +201,30 @@ function construirEnlaceWhatsApp(telefono, mensaje) {
     return `https://wa.me/${soloDigitos}?text=${encodeURIComponent(mensaje)}`;
 }
 
+// === NÚMEROS CON COMA O PUNTO (inputs de texto tipo "decimal") ===
+// <input type="number"> exige punto como separador decimal pase lo que pase,
+// pero el teclado numérico de muchos celus en español solo tiene coma -así
+// que ni coma ni punto terminaban funcionando ahí-. Por eso estos campos son
+// type="text" con inputmode="decimal", y acá se interpreta lo que sea que
+// hayan tipeado (coma o punto) como el mismo separador decimal.
+function parsearNumeroDecimal(valor) {
+    if (valor === null || valor === undefined) return 0;
+    const normalizado = String(valor).trim().replace(',', '.');
+    const numero = parseFloat(normalizado);
+    return isNaN(numero) ? 0 : numero;
+}
+
+// Filtra lo que se tipea en un input de texto "decimal": solo dígitos y un
+// único separador (, o .). Se usa en el evento "input" del campo.
+function sanearInputDecimal(input) {
+    let valor = input.value.replace(/[^0-9.,]/g, '');
+    const primerSeparador = valor.search(/[.,]/);
+    if (primerSeparador !== -1) {
+        valor = valor.slice(0, primerSeparador + 1) + valor.slice(primerSeparador + 1).replace(/[.,]/g, '');
+    }
+    if (valor !== input.value) input.value = valor;
+}
+
 // === COOLDOWN GENÉRICO PARA BOTONES (evita mandar el mismo export 2 veces) ===
 // Deshabilita el botón por "duracionMs" y muestra una cuenta regresiva en el
 // texto de "elementoEstado" (si se pasa). Se usa después de un envío exitoso.
