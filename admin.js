@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio", "Cocina"];
+    const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio", "Cocina", "Evento"];
     const URL_WEBHOOK_SHEETS = URL_APPS_SCRIPT;
     const CLAVE_RESPALDO_EXPORT_MOZOS = "respaldoExportMozos";
     const COOLDOWN_EXPORT_MS = 2 * 60 * 1000; // 2 minutos, para evitar filas duplicadas por doble click
