@@ -1,5 +1,20 @@
 // Helper global para notificaciones flotantes (Toasts)
+// Toastify por sí solo es invisible para lectores de pantalla (es un div que
+// aparece en pantalla sin avisar nada): por eso, además de mostrar el toast,
+// escribimos el mismo mensaje en una región "aria-live" oculta, que es lo que
+// hace que el lector de pantalla lo anuncie solo.
 function mostrarNotificacion(mensaje, tipo = "exito") {
+    let regionAria = document.getElementById("notificacion-aria-live");
+    if (!regionAria) {
+        regionAria = document.createElement("div");
+        regionAria.id = "notificacion-aria-live";
+        regionAria.setAttribute("role", "status");
+        regionAria.setAttribute("aria-live", "polite");
+        regionAria.className = "visually-hidden";
+        document.body.appendChild(regionAria);
+    }
+    regionAria.textContent = mensaje;
+
     if (typeof Toastify !== "undefined") {
         Toastify({
             text: mensaje,
@@ -42,7 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const sectoresBarra = ["Vip", "Cantina", "Altillo", "Principal", "Patio", "Evento"];
-    const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
+    const URL_WEBHOOK_SHEETS = URL_APPS_SCRIPT;
     const CLAVE_RESPALDO_EXPORT_BARRAS = "respaldoExportBarras";
     const COOLDOWN_EXPORT_MS = 2 * 60 * 1000; // 2 minutos, para evitar filas duplicadas por doble click
     verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_BARRAS, 'respaldo-pendiente-barras', URL_WEBHOOK_SHEETS);
@@ -466,7 +481,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 : `<span class="btn btn-sm btn-outline-secondary py-1 px-2 disabled" title="Este usuario no tiene teléfono cargado"><i class="bi bi-whatsapp"></i></span>`;
 
                             contenedorEquipoFinal.innerHTML += `
-                                <div class="list-group-item item-convocado-bartender d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-info p-2">
+                                <div class="list-group-item item-convocado-bartender d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 p-2">
                                     <div class="fw-bold text-info me-3">
                                         <i class="bi bi-check-circle-fill me-1"></i>${escaparHTML(nombreMostrar)}
                                     </div>
@@ -520,6 +535,107 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     await cargarPanelJefeBarra();
+    renderizarResumenStock('resumen-stock-jefebarra');
+
+    // === HISTORIAL DE STOCK (leído en vivo desde Google Sheets vía Apps Script) ===
+    // A diferencia del resto de la app, esto NO pasa por Supabase: el Apps
+    // Script expone un doGet de solo lectura sobre la misma planilla donde ya
+    // cae el stock que se manda desde el Dashboard del bartender.
+    const selectHistorialSemana = document.getElementById("select-historial-semana");
+    const selectHistorialBarra = document.getElementById("select-historial-barra");
+    const btnVerHistorial = document.getElementById("btn-ver-historial");
+    const resultadoHistorial = document.getElementById("resultado-historial-stock");
+
+    if (selectHistorialBarra) {
+        listaBarrasStock.forEach(barra => {
+            selectHistorialBarra.innerHTML += `<option value="${barra}">${barra}</option>`;
+        });
+    }
+
+    async function cargarSemanasHistorial() {
+        if (!selectHistorialSemana) return;
+        try {
+            const resp = await fetch(`${URL_APPS_SCRIPT}?accion=semanas`);
+            const data = await resp.json();
+            if (data.status !== "success") throw new Error(data.error || "Respuesta inesperada del Apps Script");
+
+            const semanas = data.semanas || [];
+            if (semanas.length === 0) {
+                selectHistorialSemana.innerHTML = `<option value="">No hay stock cargado todavía</option>`;
+                return;
+            }
+            selectHistorialSemana.innerHTML = semanas.map(s => `<option value="${escaparHTML(s)}">Semana del ${escaparHTML(s)}</option>`).join('');
+        } catch (err) {
+            console.error("Error al cargar las semanas del historial:", err);
+            selectHistorialSemana.innerHTML = `<option value="">No se pudo conectar con Google Sheets</option>`;
+        }
+    }
+
+    function renderizarTablaHistorial(filas) {
+        if (!resultadoHistorial) return;
+
+        if (filas.length === 0) {
+            resultadoHistorial.innerHTML = `<p class="text-muted small text-center my-2 mb-0">No hay filas cargadas para esa búsqueda.</p>`;
+            return;
+        }
+
+        const filasHTML = filas.map(f => `
+            <tr>
+                <td class="text-start ps-2">${escaparHTML(f.barra)}</td>
+                <td class="text-start">${escaparHTML(f.producto)}</td>
+                <td class="text-start">${escaparHTML(f.responsable)}</td>
+                <td>${f.inicial === "" || f.inicial === undefined ? '—' : escaparHTML(String(f.inicial))}</td>
+                <td>${f.final === "" || f.final === undefined ? '—' : escaparHTML(String(f.final))}</td>
+                <td class="fw-bold">${f.diferencia === "" || f.diferencia === undefined ? '—' : escaparHTML(String(f.diferencia))}</td>
+            </tr>`).join('');
+
+        resultadoHistorial.innerHTML = `
+            <div class="table-responsive rounded-3 border border-secondary">
+                <table class="table table-dark align-middle text-center mb-0" style="font-size: 0.8rem;">
+                    <thead>
+                        <tr>
+                            <th class="text-start ps-2">Barra</th>
+                            <th class="text-start">Producto</th>
+                            <th class="text-start">Responsable</th>
+                            <th>Inicial</th>
+                            <th>Final</th>
+                            <th>Diferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filasHTML}</tbody>
+                </table>
+            </div>`;
+    }
+
+    async function verHistorialStock() {
+        if (!resultadoHistorial) return;
+        const semana = selectHistorialSemana ? selectHistorialSemana.value : "";
+        const barra = selectHistorialBarra ? selectHistorialBarra.value : "";
+
+        if (!semana) {
+            mostrarNotificacion("Elegí una semana primero.", "error");
+            return;
+        }
+
+        resultadoHistorial.innerHTML = `<p class="text-muted small text-center my-2 mb-0">Cargando...</p>`;
+        try {
+            let url = `${URL_APPS_SCRIPT}?accion=historial&semana=${encodeURIComponent(semana)}`;
+            if (barra) url += `&barra=${encodeURIComponent(barra)}`;
+
+            const resp = await fetch(url);
+            const data = await resp.json();
+            if (data.status !== "success") throw new Error(data.error || "Respuesta inesperada del Apps Script");
+
+            renderizarTablaHistorial(data.filas || []);
+        } catch (err) {
+            console.error("Error al cargar el historial de stock:", err);
+            resultadoHistorial.innerHTML = `<p class="text-danger small text-center my-2 mb-0">No se pudo cargar el historial. Puede que el Apps Script todavía no tenga la nueva versión publicada (hace falta "Nueva versión" en Implementar > Administrar implementaciones).</p>`;
+        }
+    }
+
+    if (btnVerHistorial) btnVerHistorial.addEventListener("click", verHistorialStock);
+
+    await cargarSemanasHistorial();
 
     // === 5. FORMULARIO DE ALTA DE NUEVO BARTENDER ===
     const formAlta = document.getElementById("formAltaBartender");

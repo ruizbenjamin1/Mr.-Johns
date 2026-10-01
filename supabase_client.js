@@ -5,6 +5,81 @@ const SUPABASE_KEY = "sb_publishable_j_IpAMVeeNy6U6kNN11FyA_YyjZiFzc";
 // Inicializamos el cliente global de Supabase
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// === APPS SCRIPT UNIFICADO (Stock + Propinas) ===
+// Una sola URL para las 3 páginas que le mandan/piden datos (antes estaba
+// repetida en Dashboard.js, admin.js y jefe_barra.js por separado).
+const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
+
+// === LISTA DE PRODUCTOS DE STOCK (compartida por Dashboard.js y el resumen de
+// stock que ven Admin / Jefe de Barra / Supervisor) ===
+const listaStockGlobal = [
+    { categoria: "CHAMPAGNE", nombre: "Champagne Baron B" },
+    { categoria: "CHAMPAGNE", nombre: "Champagne Baron B rose" },
+    { categoria: "CHAMPAGNE", nombre: "Champagne Mumm" },
+    { categoria: "CHAMPAGNE", nombre: "Champagne Mumm lager" },
+    { categoria: "CHAMPAGNE", nombre: "Chandon Delice" },
+    { categoria: "CHAMPAGNE", nombre: "Chandon Delice Rose" },
+    { categoria: "CHAMPAGNE", nombre: "Chandon Extra Brut" },
+    { categoria: "CHAMPAGNE", nombre: "Chandon Aperitif" },
+    { categoria: "CHAMPAGNE", nombre: "Champagne de corte (cúter/renas/callia, etc)" },
+    { categoria: "CHAMPAGNE", nombre: "Espumante Callia" },
+    { categoria: "VODKA ABSOLUT", nombre: "Absolut vodka swedish 700ml" },
+    { categoria: "VODKA ABSOLUT", nombre: "Absolut clásico 500ml" },
+    { categoria: "VODKA ABSOLUT", nombre: "Absolut saborizado" },
+    { categoria: "VODKA ABSOLUT", nombre: "Absolut Tabasco" },
+    { categoria: "VINOS", nombre: "Vino Callia" },
+    { categoria: "VINOS", nombre: "Vino callia rose" },
+    { categoria: "VINOS", nombre: "Vino Santa Julia" },
+    { categoria: "VINOS", nombre: "Vino Cafayate" },
+    { categoria: "VINOS", nombre: "Vino Chacabuco" },
+    { categoria: "VINOS", nombre: "Vino Cafayate Malbec" },
+    { categoria: "VINOS", nombre: "Vino Chico Zossi (todas las variedades)" },
+    { categoria: "VINOS", nombre: "Vino Eugenio Bustos" },
+    { categoria: "VINOS", nombre: "Vino La Linda" },
+    { categoria: "VINOS", nombre: "Vino ö-61 Malbec" },
+    { categoria: "VINOS", nombre: "Vino Rutini Malbec" },
+    { categoria: "COCA COLA", nombre: "Coca cola vidrio 350ml" },
+    { categoria: "COCA COLA", nombre: "Coca cola vidrio zero 350ml" },
+    { categoria: "COCA COLA", nombre: "Gaseosa coca cola pet 375ml" },
+    { categoria: "COCA COLA", nombre: "Gaseosa coca cola Zero pet 375ml" },
+    { categoria: "COCA COLA", nombre: "Gaseosa coca cola 1.5L" },
+    { categoria: "COCA COLA", nombre: "Gaseosa coca cola zero 1.5L" },
+    { categoria: "SKYY", nombre: "Skyy (todas las presentaciones)" },
+    { categoria: "ENERGIZANTE", nombre: "Energizante Red Bull 250 ml" },
+    { categoria: "ENERGIZANTE", nombre: "Energizante Speed 250ml" },
+    { categoria: "ENERGIZANTE", nombre: "Energizante Sugar Free 250ml" },
+    { categoria: "ENERGIZANTE", nombre: "Energizante Red Bull Red 250ml" },
+    { categoria: "ENERGIZANTE", nombre: "Energizante Red Bull green 250ml" },
+    { categoria: "ENERGIZANTE", nombre: "Energizante Red Bull summer" },
+    { categoria: "GIN", nombre: "Gin Bombay" },
+    { categoria: "GIN", nombre: "Gin Bull Dog" },
+    { categoria: "GIN", nombre: "Gin Spirito Blu" },
+    { categoria: "GIN", nombre: "Gin Beefeater 1L" },
+    { categoria: "GIN", nombre: "Gin Beefeater 700ml" },
+    { categoria: "GIN", nombre: "Gin Beefeater Pink 700ml" },
+    { categoria: "GIN", nombre: "Gin Beefeater Blood Orange 700ml" },
+    { categoria: "FERNET", nombre: "Fernet Branca 750ml" },
+    { categoria: "FERNET", nombre: "Fernet Branca 1lt" },
+    { categoria: "FERNET", nombre: "Fernet Branca 450ml" },
+    { categoria: "CERVEZA", nombre: "Cerveza Heineken 330ml" },
+    { categoria: "CERVEZA", nombre: "Cerveza Miller 330cc" },
+    { categoria: "CERVEZA", nombre: "Cerveza Imperial 300ml" },
+    { categoria: "CERVEZA", nombre: "Cerveza Sin alcohol" },
+    { categoria: "CERVEZA", nombre: "Cerveza Blue Moon" },
+    { categoria: "AGUAS", nombre: "Agua mineral Benedictino s/gas" },
+    { categoria: "AGUAS", nombre: "Agua mineral Palau s/gas" },
+    { categoria: "AGUAS", nombre: "Agua mineral Villa del Sur s/gas" },
+    { categoria: "AGUAS", nombre: "Agua tóxica schweppes 375ml" },
+    { categoria: "AGUAS", nombre: "Agua tonica schweppes 310ml" },
+    { categoria: "AGUAS", nombre: "Agua tónica 1,5L" },
+    { categoria: "AGUAS", nombre: "Agua mineral Benedictino c/gas" },
+    { categoria: "CONSUMO SOCIOS", nombre: "Whisky Johnnie Walker Swing (Consumo Socios)" },
+    { categoria: "CONSUMO SOCIOS", nombre: "Vodka Absolut Elyx (Consumo Socios)" },
+    { categoria: "CONSUMO SOCIOS", nombre: "Red Bull (Consumo Socios)" },
+    { categoria: "CONSUMO SOCIOS", nombre: "Fernet Branca 750ml (Consumo Socios)" },
+    { categoria: "CONSUMO SOCIOS", nombre: "Vodka Grey Goose (Consumo Socios)" }
+];
+
 // === ESCAPE DE TEXTO PARA HTML (evita inyección de código) ===
 // Cualquier texto que haya escrito el personal (por ejemplo las notas de la
 // agenda semanal) y que después se muestra armando HTML a mano con innerHTML
@@ -152,7 +227,7 @@ function renderizarGrillaSemanal(usuariosDB, agendasDB, convocadosDB, filtroRol,
             }
 
             celdasHTML += `
-                <td class="text-center" style="cursor:pointer;" onclick="seleccionarDiaDesdeGrilla('${diaLabel}')" title="Ir a ${diaLabel}">
+                <td class="text-center" style="cursor:pointer;" tabindex="0" role="button" aria-label="Ir a ${diaLabel}: ${escaparHTML(texto)}" onclick="seleccionarDiaDesdeGrilla('${diaLabel}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();seleccionarDiaDesdeGrilla('${diaLabel}');}">
                     <span class="badge ${claseBadge} small">${texto}</span>
                 </td>`;
         });
@@ -190,6 +265,60 @@ function seleccionarDiaDesdeGrilla(dia) {
     if (ancla) ancla.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 window.seleccionarDiaDesdeGrilla = seleccionarDiaDesdeGrilla;
+
+// === RESUMEN DE STOCK DE LA NOCHE (Admin / Jefe de Barra / Supervisor) ===
+// Barras que efectivamente se cuentan (mismas opciones que el select del
+// Dashboard del bartender). Muestra el estado de cada una sin exponer el
+// detalle producto por producto -eso sigue siendo del bartender que cuenta-.
+const listaBarrasStock = ["Principal", "Cantina", "Warhol", "Patio", "Altillo"];
+
+async function renderizarResumenStock(contenedorId) {
+    const contenedor = document.getElementById(contenedorId);
+    if (!contenedor) return;
+
+    try {
+        const { data, error } = await _supabase.rpc('listar_stock_progreso', { p_token: obtenerTokenSesion() });
+        if (error) throw error;
+
+        const porBarra = {};
+        (data || []).forEach(fila => { porBarra[fila.barra] = fila; });
+
+        let html = '<div class="list-group">';
+        listaBarrasStock.forEach(barra => {
+            const fila = porBarra[barra];
+            let estadoTexto = "Sin iniciar";
+            let claseBadge = "bg-secondary bg-opacity-25 text-secondary border-secondary";
+            let detalle = "Nadie empezó el conteo todavía.";
+
+            if (fila) {
+                const totalProductos = listaStockGlobal.length;
+                const cargados = Object.values(fila.valores || {}).filter(v => v && (v.inicial || v.final)).length;
+                if (fila.inicial_enviado) {
+                    estadoTexto = "Inicial enviado";
+                    claseBadge = "bg-warning bg-opacity-25 text-warning border-warning";
+                } else {
+                    estadoTexto = "En progreso";
+                    claseBadge = "bg-info bg-opacity-25 text-info border-info";
+                }
+                detalle = `${escaparHTML(fila.responsable || 'Sin nombre cargado')} · ${cargados}/${totalProductos} productos`;
+            }
+
+            html += `
+                <div class="list-group-item list-group-item-custom d-flex justify-content-between align-items-center rounded-3 mb-2 flex-wrap gap-2">
+                    <div>
+                        <span class="fw-bold text-light">${barra}</span>
+                        <div class="text-muted small">${detalle}</div>
+                    </div>
+                    <span class="badge ${claseBadge} border small">${estadoTexto}</span>
+                </div>`;
+        });
+        html += '</div>';
+        contenedor.innerHTML = html;
+    } catch (err) {
+        console.error("Error al cargar el resumen de stock:", err);
+        contenedor.innerHTML = `<p class="text-danger small text-center my-2 mb-0">No se pudo cargar el stock.</p>`;
+    }
+}
 
 // === AVISO POR WHATSAPP (link "click to send", sin costo ni cuentas nuevas) ===
 // No manda nada solo: abre WhatsApp con el mensaje ya escrito para que quien

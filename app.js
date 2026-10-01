@@ -1,5 +1,20 @@
 // Helper global para notificaciones flotantes (Toasts)
+// Toastify por sí solo es invisible para lectores de pantalla (es un div que
+// aparece en pantalla sin avisar nada): por eso, además de mostrar el toast,
+// escribimos el mismo mensaje en una región "aria-live" oculta, que es lo que
+// hace que el lector de pantalla lo anuncie solo.
 function mostrarNotificacion(mensaje, tipo = "exito") {
+    let regionAria = document.getElementById("notificacion-aria-live");
+    if (!regionAria) {
+        regionAria = document.createElement("div");
+        regionAria.id = "notificacion-aria-live";
+        regionAria.setAttribute("role", "status");
+        regionAria.setAttribute("aria-live", "polite");
+        regionAria.className = "visually-hidden";
+        document.body.appendChild(regionAria);
+    }
+    regionAria.textContent = mensaje;
+
     if (typeof Toastify !== "undefined") {
         Toastify({
             text: mensaje,
@@ -99,6 +114,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         window.location.href = "admin.html";
                     } else if (usuario.rol === "administrador_barra" || usuario.rol === "barman" || usuario.rol === "admin_barra") {
                         window.location.href = "jefe_barra.html";
+                    } else if (usuario.rol === "supervisor") {
+                        window.location.href = "supervisor.html";
                     } else {
                         window.location.href = "Dashboard.html";
                     }

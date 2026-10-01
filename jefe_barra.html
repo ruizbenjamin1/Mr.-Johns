@@ -39,7 +39,7 @@
     </nav>
 
     <div class="container mt-4 px-3" style="padding-bottom: 60px;">
-        
+
         <!-- BLOQUE 0: VISTA SEMANAL (los 7 días de un vistazo, sin ir cambiando el selector) -->
         <div class="card card-barra p-3 mb-4 rounded-3 shadow-sm panel-bloque-barra">
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -117,24 +117,62 @@
             </div>
         </div>
 
+        <!-- HISTORIAL DE STOCK (leído en vivo desde Google Sheets) -->
+        <div class="card card-barra p-3 mb-4 rounded-3 shadow-sm panel-bloque-barra">
+            <h5 class="fw-bold mb-3 text-light"><i class="bi bi-clock-history me-2"></i>Historial de Stock</h5>
+            <p class="text-muted small mb-3">Elegí una semana (y, si querés, una barra puntual) para ver todo lo que se cargó ese día. Se lee directo de la planilla de Google Sheets.</p>
+
+            <div class="row g-2 mb-3">
+                <div class="col-md-5">
+                    <select id="select-historial-semana" class="form-select form-select-sm bg-dark text-light border-secondary">
+                        <option value="">Cargando semanas...</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select id="select-historial-barra" class="form-select form-select-sm bg-dark text-light border-secondary">
+                        <option value="">Todas las barras</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button id="btn-ver-historial" type="button" class="btn btn-info text-dark btn-sm fw-bold w-100">
+                        <i class="bi bi-search me-1"></i>Ver
+                    </button>
+                </div>
+            </div>
+
+            <div id="resultado-historial-stock">
+                <p class="text-muted small text-center my-2 mb-0">Elegí una semana y tocá "Ver" para consultar el historial.</p>
+            </div>
+        </div>
+
+        <!-- STOCK DE ESTA NOCHE (resumen de solo lectura) -->
+        <div class="card card-barra p-3 mb-4 rounded-3 shadow-sm panel-bloque-barra">
+            <h5 class="fw-bold mb-3 text-light"><i class="bi bi-boxes me-2"></i>Stock de esta noche</h5>
+            <div id="resumen-stock-jefebarra"><p class="text-muted small text-center my-2 mb-0">Cargando...</p></div>
+        </div>
+
         <!-- BLOQUE 3: REGISTRAR NUEVO BARTENDER -->
         <div class="card card-barra p-3 mb-4 rounded-3 shadow-sm panel-bloque-barra">
             <h5 class="fw-bold mb-3 text-light"><i class="bi bi-person-plus-fill me-2"></i>Registrar Nuevo Bartender</h5>
             <form id="formAltaBartender" class="row g-2">
                 <div class="col-md-3">
+                    <label for="new-bartender-name" class="visually-hidden">Nombre</label>
                     <input type="text" id="new-bartender-name" class="form-control bg-dark text-light border-secondary" placeholder="Nombre" required>
                 </div>
                 <div class="col-md-3">
+                    <label for="new-bartender-username" class="visually-hidden">Usuario</label>
                     <input type="text" id="new-bartender-username" class="form-control bg-dark text-light border-secondary" placeholder="Usuario" required>
                 </div>
                 <div class="col-md-2">
+                    <label for="new-bartender-password" class="visually-hidden">Contraseña</label>
                     <input type="text" id="new-bartender-password" class="form-control bg-dark text-light border-secondary" placeholder="Contraseña" required>
                 </div>
                 <div class="col-md-3">
+                    <label for="new-bartender-telefono" class="visually-hidden">WhatsApp</label>
                     <input type="tel" id="new-bartender-telefono" class="form-control bg-dark text-light border-secondary" placeholder="WhatsApp (ej 5491122334455)">
                 </div>
                 <div class="col-md-1">
-                    <button type="submit" class="btn btn-info w-100 fw-bold text-dark"><i class="bi bi-plus-lg"></i></button>
+                    <button type="submit" class="btn btn-info w-100 fw-bold text-dark" aria-label="Agregar bartender"><i class="bi bi-plus-lg"></i></button>
                 </div>
             </form>
         </div>

@@ -52,7 +52,6 @@
     <!-- CUERPO PRINCIPAL DEL ADMIN -->
     <div class="container mt-4 px-3" style="padding-bottom: 90px;">
 
-
         <!-- SECCIÓN 0: VISTA SEMANAL (los 7 días de un vistazo, sin ir cambiando el selector) -->
         <div class="card card-custom p-3 mb-4 rounded-3 shadow-sm">
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -115,26 +114,32 @@
             <h5 class="fw-bold mb-3 text-light"><i class="bi bi-person-plus-fill me-2"></i>Dar de Alta Nuevo Usuario</h5>
             <form id="formAltaPersonal" class="row g-2">
                 <div class="col-md-2">
+                    <label for="new-name" class="visually-hidden">Nombre</label>
                     <input type="text" id="new-name" class="form-control bg-dark text-light border-secondary" placeholder="Nombre" required>
                 </div>
                 <div class="col-md-2">
+                    <label for="new-username" class="visually-hidden">Usuario</label>
                     <input type="text" id="new-username" class="form-control bg-dark text-light border-secondary" placeholder="Usuario" required>
                 </div>
                 <div class="col-md-2">
+                    <label for="new-password" class="visually-hidden">Contraseña</label>
                     <input type="text" id="new-password" class="form-control bg-dark text-light border-secondary" placeholder="Contraseña" required>
                 </div>
                 <div class="col-md-2">
+                    <label for="new-telefono" class="visually-hidden">WhatsApp</label>
                     <input type="tel" id="new-telefono" class="form-control bg-dark text-light border-secondary" placeholder="WhatsApp (ej 5491122334455)">
                 </div>
                 <div class="col-md-2">
+                    <label for="new-role" class="visually-hidden">Rol</label>
                     <select id="new-role" class="form-select bg-dark text-light border-secondary">
                         <option value="mozo">Mozo</option>
                         <option value="bartender">Bartender</option>
                         <option value="admin_barra">Jefe de Barra</option>
+                        <option value="supervisor">Supervisor</option>
                     </select>
                 </div>
                 <div class="col-md-1">
-                    <button type="submit" class="btn btn-warning w-100 fw-bold">+</button>
+                    <button type="submit" class="btn btn-warning w-100 fw-bold" aria-label="Agregar usuario">+</button>
                 </div>
             </form>
         </div>
@@ -176,6 +181,9 @@
                     </button>
                     <button type="button" class="btn btn-sm fw-bold flex-grow-1 btn-categoria-personal btn-outline-light" data-categoria="bartenders">
                         <i class="bi bi-cup-straw me-1"></i>Bartenders
+                    </button>
+                    <button type="button" class="btn btn-sm fw-bold flex-grow-1 btn-categoria-personal btn-outline-success" data-categoria="supervisores">
+                        <i class="bi bi-eye-fill me-1"></i>Supervisores
                     </button>
                 </div>
 
@@ -236,6 +244,27 @@
                                 </tr>
                             </thead>
                             <tbody id="tabla-usuarios-crud-bartenders">
+                                <!-- JS inyectará las filas editables aquí -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SUPERVISORES -->
+                <div id="categoria-supervisores" class="categoria-personal-panel d-none">
+                    <div class="table-responsive rounded-3 border border-secondary">
+                        <table class="table table-dark-custom align-middle text-center mb-0" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Nombre Real</th>
+                                    <th scope="col">Usuario</th>
+                                    <th scope="col">Contraseña</th>
+                                    <th scope="col">Teléfono</th>
+                                    <th scope="col">Rol</th>
+                                    <th scope="col">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-usuarios-crud-supervisores">
                                 <!-- JS inyectará las filas editables aquí -->
                             </tbody>
                         </table>

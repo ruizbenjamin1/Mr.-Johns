@@ -139,11 +139,14 @@ body {
 }
 
 /* --- TARJETAS PREMIUM (Efecto Glassmorphism sutil) --- */
+/* El borde define el borde de la tarjeta; no sumamos además una sombra ancha
+   y difusa (esa combinación -borde fino + sombra de 32px- es la firma típica
+   de una UI "genérica", y sobre fondo oscuro una sombra grande casi no aporta
+   nada de profundidad real). Con el borde solo ya queda bien delimitada. */
 .card-admin, .card-barra, .card-custom {
     background: var(--bg-card) !important;
     border: 1px solid var(--border-color) !important;
     border-radius: 16px !important; /* Bordes más redondeados y modernos */
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
     transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.2s ease, border-color 0.2s ease;
@@ -161,12 +164,24 @@ body {
     background-color: var(--tarjeta-carta-bg) !important;
 }
 
-/* Tarjetas de convocados ya asignados (verdoso para mozo, azulado para bartender) */
+/* Tarjetas de convocados ya asignados (verdoso para mozo, azulado para bartender).
+   "border: none" es necesario porque Bootstrap le pone a TODO .list-group-item
+   un borde fino gris propio por defecto -sin esto, ese borde de Bootstrap
+   queda dando vueltas en los otros tres lados aunque no lo hayamos pedido-.
+   El acento de color va solo del lado izquierdo, como una franja, en vez de
+   envolver toda la fila en una caja. */
+.item-convocado-mozo,
+.item-convocado-bartender {
+    border: none !important;
+    border-left: 4px solid transparent !important;
+}
 .item-convocado-mozo {
     background-color: var(--item-convocado-mozo-bg) !important;
+    border-left-color: var(--success-pro) !important;
 }
 .item-convocado-bartender {
     background-color: var(--item-convocado-bartender-bg) !important;
+    border-left-color: var(--cyan-barra) !important;
 }
 
 /* Fila divisoria de categoría en la planilla de stock */
@@ -371,10 +386,15 @@ table.table tbody td:first-child {
 }
 
 /* Elementos de la lista de confirmados */
+/* Sin borde propio a propósito: estas filas ya viven dentro de una tarjeta
+   con su propio borde (.card-custom/.card-barra), y ponerles un borde a ellas
+   también las convertía en "tarjetas dentro de la tarjeta". El fondo de color
+   ya alcanza para separarlas visualmente unas de otras. */
 .list-group-item-custom {
     background-color: var(--list-item-bg) !important;
-    border: 1px solid var(--border-color) !important;
+    border: none !important;
     margin-bottom: 8px;
+    padding: 14px 16px !important;
     border-radius: 12px !important;
     transition: transform 0.2s ease, background-color 0.2s ease;
 }

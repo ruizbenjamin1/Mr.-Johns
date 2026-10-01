@@ -1,5 +1,20 @@
 // Helper global para notificaciones flotantes (Toasts)
+// Toastify por sí solo es invisible para lectores de pantalla (es un div que
+// aparece en pantalla sin avisar nada): por eso, además de mostrar el toast,
+// escribimos el mismo mensaje en una región "aria-live" oculta, que es lo que
+// hace que el lector de pantalla lo anuncie solo.
 function mostrarNotificacion(mensaje, tipo = "exito") {
+    let regionAria = document.getElementById("notificacion-aria-live");
+    if (!regionAria) {
+        regionAria = document.createElement("div");
+        regionAria.id = "notificacion-aria-live";
+        regionAria.setAttribute("role", "status");
+        regionAria.setAttribute("aria-live", "polite");
+        regionAria.className = "visually-hidden";
+        document.body.appendChild(regionAria);
+    }
+    regionAria.textContent = mensaje;
+
     if (typeof Toastify !== "undefined") {
         Toastify({
             text: mensaje,
@@ -42,7 +57,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     const opcionesSectores = ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio", "Cocina"];
-    const URL_WEBHOOK_SHEETS = "https://script.google.com/macros/s/AKfycbw8u2MFzpmLOFzHkqasuDrFuBwhB8qDQSnSYX6xKY4p9SBllkOM14_UzuLF8nB2VnXWSQ/exec";
+    const URL_WEBHOOK_SHEETS = URL_APPS_SCRIPT;
     const CLAVE_RESPALDO_EXPORT_MOZOS = "respaldoExportMozos";
     const COOLDOWN_EXPORT_MS = 2 * 60 * 1000; // 2 minutos, para evitar filas duplicadas por doble click
     verificarEnvioPendiente(CLAVE_RESPALDO_EXPORT_MOZOS, 'respaldo-pendiente-mozos', URL_WEBHOOK_SHEETS);
@@ -392,12 +407,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             const tablaCRUDJefes = document.getElementById("tabla-usuarios-crud-jefes");
             const tablaCRUDMozos = document.getElementById("tabla-usuarios-crud-mozos");
             const tablaCRUDBartenders = document.getElementById("tabla-usuarios-crud-bartenders");
+            const tablaCRUDSupervisores = document.getElementById("tabla-usuarios-crud-supervisores");
             const contenedorEquipoFinal = document.getElementById("equipo-convocado-final");
 
             if(listaMozos) listaMozos.innerHTML = "";
             if(tablaCRUDJefes) tablaCRUDJefes.innerHTML = "";
             if(tablaCRUDMozos) tablaCRUDMozos.innerHTML = "";
             if(tablaCRUDBartenders) tablaCRUDBartenders.innerHTML = "";
+            if(tablaCRUDSupervisores) tablaCRUDSupervisores.innerHTML = "";
             if(contenedorEquipoFinal) contenedorEquipoFinal.innerHTML = "";
 
             let cuentaConvocados = 0;
@@ -407,7 +424,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             const tablasCRUDPorRol = {
                 admin_barra: tablaCRUDJefes,
                 mozo: tablaCRUDMozos,
-                bartender: tablaCRUDBartenders
+                bartender: tablaCRUDBartenders,
+                supervisor: tablaCRUDSupervisores
             };
 
             usuariosDB.forEach(usuario => {
@@ -424,6 +442,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                     <option value="mozo" ${usuario.rol === 'mozo' ? 'selected' : ''}>Mozo</option>
                                     <option value="bartender" ${usuario.rol === 'bartender' ? 'selected' : ''}>Bartender</option>
                                     <option value="admin_barra" ${usuario.rol === 'admin_barra' ? 'selected' : ''}>Jefe de Barra</option>
+                                    <option value="supervisor" ${usuario.rol === 'supervisor' ? 'selected' : ''}>Supervisor</option>
                                 </select>
                             </td>
                             <td>
@@ -467,7 +486,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                                 : `<span class="btn btn-sm btn-outline-secondary py-1 px-2 disabled" title="Este usuario no tiene teléfono cargado"><i class="bi bi-whatsapp"></i></span>`;
 
                             contenedorEquipoFinal.innerHTML += `
-                                <div class="list-group-item item-convocado-mozo d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 border border-success p-2">
+                                <div class="list-group-item item-convocado-mozo d-flex flex-wrap justify-content-between align-items-center rounded-3 mb-2 p-2">
                                     <div class="fw-bold text-success me-3">
                                         <i class="bi bi-check-circle-fill me-1"></i>${escaparHTML(nombreMostrar)} <small class="text-secondary">(${usuario.rol})</small>
                                     </div>
