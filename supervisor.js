@@ -137,7 +137,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     await cargarPanelSupervisor();
-    renderizarResumenStock('resumen-stock-supervisor');
 
     // === HISTORIAL DE STOCK (leído en vivo desde Google Sheets vía Apps Script) ===
     // A diferencia del resto de la app, esto NO pasa por Supabase: el Apps
