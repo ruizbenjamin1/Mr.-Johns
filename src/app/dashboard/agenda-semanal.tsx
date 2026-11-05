@@ -25,14 +25,7 @@ export type EstadoAgenda = {
   textoSemana: string;
 };
 
-export function AgendaSemanal({
-  inicial,
-  convocatorias = {},
-}: {
-  inicial: EstadoAgenda;
-  /** Sector de cada día de esta semana en que lo convocaron. */
-  convocatorias?: Partial<Record<ClaveDia, string>>;
-}) {
+export function AgendaSemanal({ inicial }: { inicial: EstadoAgenda }) {
   const [dias, setDias] = useState(inicial.dias);
   const [observaciones, setObservaciones] = useState(inicial.observaciones);
   const [pendiente, iniciar] = useTransition();
@@ -99,13 +92,8 @@ export function AgendaSemanal({
                   <TableCell>
                     {vencido ? (
                       <Badge variant="apagado">Turno finalizado</Badge>
-                    ) : convocatorias[clave] ? (
-                      <span className="grid justify-items-start gap-0.5">
-                        <Badge variant="exito">Convocado</Badge>
-                        <span className="text-muted-foreground text-xs">{convocatorias[clave]}</span>
-                      </span>
                     ) : dias[clave] ? (
-                      <Badge variant="aviso">Sin convocar</Badge>
+                      <Badge variant="exito">¡Confirmado!</Badge>
                     ) : (
                       <Badge variant="destructive">No disponible</Badge>
                     )}

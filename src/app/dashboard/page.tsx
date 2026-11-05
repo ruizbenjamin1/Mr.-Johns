@@ -140,7 +140,7 @@ async function ContenidoDashboard() {
           </Seccion>
         )}
 
-        <AgendaSemanal inicial={estadoAgenda} convocatorias={convocatorias} />
+        <AgendaSemanal inicial={estadoAgenda} />
 
         <section className="grid gap-3">
           <h2 className="flex items-center gap-2 font-bold text-amber-700 dark:text-primary">
