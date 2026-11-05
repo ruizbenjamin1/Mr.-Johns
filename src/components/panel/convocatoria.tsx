@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useTransition } from "react";
-import { CalendarRange, CheckCircle2, Loader2, MapPin, MessageCircle, UserCheck, UserMinus, UserPlus, Users } from "lucide-react";
+import { CalendarRange, CheckCircle2, ChefHat, Loader2, MapPin, MessageCircle, UserCheck, UserMinus, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { alternarConvocatoria, guardarPropinaConvocado, guardarSector } from "@/app/acciones/convocatoria";
 import { GrillaSemanal } from "@/components/panel/grilla-semanal";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { construirEnlaceWhatsApp, formatearPesos } from "@/lib/numeros";
+import { repartirPropinasMozos, SECTOR_COCINA } from "@/lib/propinas";
 import { esConvocadoDelDia, estaDisponibilidadVigente, normalizarDiaClave, type ClaveDia } from "@/lib/turno";
 import { cn } from "@/lib/utils";
 import type { Agenda, Convocado, Usuario } from "@/lib/tipos";
@@ -33,6 +34,9 @@ type Estado = {
   setDia: (dia: string) => void;
   propinas: Record<string, number>;
   setPropina: (userName: string, monto: number) => void;
+  /** Sector elegido en pantalla (se usa para el reparto antes de que vuelva el servidor). */
+  sectores: Record<string, string>;
+  setSectorEnPantalla: (userName: string, sector: string) => void;
 };
 
 const ContextoPanel = createContext<Estado | null>(null);
@@ -47,12 +51,20 @@ export function usePanel() {
 export function ProveedorPanel({ diaInicial = "Sábado", children }: { diaInicial?: string; children: React.ReactNode }) {
   const [dia, setDiaEstado] = useState(diaInicial);
   const [propinas, setPropinas] = useState<Record<string, number>>({});
+  const [sectores, setSectores] = useState<Record<string, string>>({});
   const setDia = (nuevo: string) => {
     setDiaEstado(nuevo);
-    setPropinas({}); // las propinas en pantalla son del día elegido
+    // las propinas y sectores en pantalla son del día elegido
+    setPropinas({});
+    setSectores({});
   };
   const setPropina = (userName: string, monto: number) => setPropinas((p) => ({ ...p, [userName]: monto }));
-  return <ContextoPanel.Provider value={{ dia, setDia, propinas, setPropina }}>{children}</ContextoPanel.Provider>;
+  const setSectorEnPantalla = (userName: string, sector: string) => setSectores((s) => ({ ...s, [userName]: sector }));
+  return (
+    <ContextoPanel.Provider value={{ dia, setDia, propinas, setPropina, sectores, setSectorEnPantalla }}>
+      {children}
+    </ContextoPanel.Provider>
+  );
 }
 
 function disponibleEseDia(agenda: Agenda | undefined, dia: string) {
@@ -98,14 +110,17 @@ function FilaConvocado({
   usuario,
   convocado,
   config,
+  cobra,
 }: {
   usuario: Usuario;
   convocado: Convocado;
   config: ConfigConvocatoria;
+  /** Mozos: lo que le toca después del reparto. */
+  cobra?: number;
 }) {
-  const { dia, propinas, setPropina } = usePanel();
+  const { dia, propinas, setPropina, sectores, setSectorEnPantalla } = usePanel();
   const [pendiente, iniciar] = useTransition();
-  const [sector, setSector] = useState(convocado.sector || "Principal");
+  const sector = sectores[usuario.user_name] ?? convocado.sector ?? "Principal";
   const nombre = usuario.nombre_real || usuario.user_name;
   const propina = propinas[usuario.user_name] ?? convocado.propina_individual ?? 0;
 
@@ -114,7 +129,7 @@ function FilaConvocado({
   const esMozo = config.modo === "mozos";
 
   function cambiarSector(nuevo: string) {
-    setSector(nuevo);
+    setSectorEnPantalla(usuario.user_name, nuevo);
     iniciar(async () => {
       const r = await guardarSector(usuario.user_name, dia, nuevo);
       if (r.ok) toast.success(esMozo ? "Sector guardado correctamente." : "Barra asignada correctamente.");
@@ -179,6 +194,15 @@ function FilaConvocado({
             />
           </div>
         )}
+        {esMozo && cobra !== undefined && (
+          <Badge
+            variant={cobra > 0 ? "exito" : "apagado"}
+            className="min-w-24 justify-center"
+            title="Lo que le toca después del reparto"
+          >
+            Cobra ${formatearPesos(cobra)}
+          </Badge>
+        )}
         {whatsapp ? (
           <Button asChild size="icon" variant="outline" className="size-8 text-emerald-600" title="Avisar por WhatsApp">
             <a href={whatsapp} target="_blank" rel="noopener noreferrer" aria-label={`Avisar a ${nombre} por WhatsApp`}>
@@ -218,7 +242,7 @@ export function SeccionConvocados({
   convocados: Convocado[];
   config: ConfigConvocatoria;
 }) {
-  const { dia, setDia, propinas } = usePanel();
+  const { dia, setDia, propinas, sectores } = usePanel();
   const esMozo = config.modo === "mozos";
 
   // Igual que antes: solo aparece quien además tiene disponibilidad vigente ese día.
@@ -231,10 +255,17 @@ export function SeccionConvocados({
       !!f.convocado && disponibleEseDia(agendas.find((a) => a.user_name === f.usuario.user_name), dia)
     );
 
-  const total = filas.reduce(
-    (suma, f) => suma + (propinas[f.usuario.user_name] ?? f.convocado.propina_individual ?? 0),
-    0
+  const reparto = repartirPropinasMozos(
+    filas.map((f) => ({
+      userName: f.usuario.user_name,
+      sector: sectores[f.usuario.user_name] ?? f.convocado.sector ?? "Principal",
+      juntado: propinas[f.usuario.user_name] ?? f.convocado.propina_individual ?? 0,
+    }))
   );
+  const nombreDe = (userName: string) => {
+    const u = filas.find((f) => f.usuario.user_name === userName)?.usuario;
+    return u?.nombre_real || userName;
+  };
 
   return (
     <Seccion
@@ -247,9 +278,24 @@ export function SeccionConvocados({
         {esMozo && (
           <div className="flex justify-end">
             <Badge variant="exito" className="px-3 py-1.5 text-sm">
-              Total propinas del día: ${formatearPesos(total)}
+              Total propinas del día: ${formatearPesos(reparto.total)}
             </Badge>
           </div>
+        )}
+        {esMozo && filas.length > 0 && (
+          <p
+            className={cn(
+              "flex items-start gap-1.5 text-xs",
+              reparto.hayCocina ? "text-muted-foreground" : "text-amber-700 dark:text-primary"
+            )}
+          >
+            <ChefHat className="mt-px size-3.5 shrink-0" />
+            {reparto.hayCocina
+              ? `El total se reparte entre ${reparto.beneficiarios.map(nombreDe).join(", ")} (Cocina${
+                  reparto.beneficiarios.length > 1 ? " y los mozos en $0" : ""
+                }).`
+              : `Nadie está asignado a ${SECTOR_COCINA}: por ahora cada uno cobra lo que juntó.`}
+          </p>
         )}
         {filas.length === 0 ? (
           <TextoVacio>
@@ -263,6 +309,7 @@ export function SeccionConvocados({
               usuario={f.usuario}
               convocado={f.convocado}
               config={config}
+              cobra={esMozo ? reparto.cobra[f.usuario.user_name] : undefined}
             />
           ))
         )}

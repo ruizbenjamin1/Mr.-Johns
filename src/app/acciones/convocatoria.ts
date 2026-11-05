@@ -10,6 +10,7 @@ import {
   llamarRpc,
 } from "@/lib/datos";
 import { enviarAPlanilla } from "@/lib/apps-script";
+import { repartirPropinasMozos } from "@/lib/propinas";
 import { DIAS_SEMANA, esConvocadoDelDia, fechaHoyArgentina, obtenerLunesSemanaActual } from "@/lib/turno";
 
 // Convocatoria, sectores y propinas (paneles de Administración y Jefe de Barra).
@@ -75,7 +76,7 @@ export async function guardarPropinaBarra(sector: string, dia: string, monto: nu
 }
 
 /**
- * Exporta a la planilla los MOZOS convocados del día con su propina.
+ * Exporta a la planilla los MOZOS convocados del día con lo que cobra cada uno.
  * Primero guarda las propinas que están en pantalla y después arma las filas
  * con lo que quedó en la base (igual que antes).
  */
@@ -94,19 +95,30 @@ export async function exportarMozos(dia: string, propinas: Record<string, number
     }
 
     const [convocados, usuarios] = await Promise.all([leerConvocadosSemana(), leerUsuarios()]);
-    const filas = convocados
+    const mozos = convocados
       .filter((c) => esConvocadoDelDia(c.dia, dia))
       .map((c) => ({ convocado: c, usuario: usuarios.find((u) => u.user_name === c.user_name) }))
-      .filter((f) => f.usuario?.rol === "mozo")
-      .map(({ convocado, usuario }) => ({
-        semana: fechaHoyArgentina(),
-        usuario: usuario!.nombre_real || convocado.user_name,
-        rol: `Mozo (${dia})`,
-        sector: convocado.sector || "Principal",
-        propina: convocado.propina_individual || 0,
-      }));
+      .filter((f) => f.usuario?.rol === "mozo");
 
-    if (filas.length === 0) throw new Error(`No hay mozos convocados para el ${dia}`);
+    if (mozos.length === 0) throw new Error(`No hay mozos convocados para el ${dia}`);
+
+    // A la planilla va lo que COBRA cada uno después del reparto (Cocina +
+    // mozos en $0 se dividen el total), no lo que juntó. Ver lib/propinas.ts.
+    const reparto = repartirPropinasMozos(
+      mozos.map(({ convocado }) => ({
+        userName: convocado.user_name,
+        sector: convocado.sector || "Principal",
+        juntado: convocado.propina_individual || 0,
+      }))
+    );
+
+    const filas = mozos.map(({ convocado, usuario }) => ({
+      semana: fechaHoyArgentina(),
+      usuario: usuario!.nombre_real || convocado.user_name,
+      rol: `Mozo (${dia})`,
+      sector: convocado.sector || "Principal",
+      propina: reparto.cobra[convocado.user_name] ?? 0,
+    }));
 
     await enviarAPlanilla({ tipo: "staff", filas });
     return { cantidad: filas.length };
