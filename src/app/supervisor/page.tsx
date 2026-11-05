@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { EncabezadoCargando, EncabezadoPanel } from "@/components/encabezado-panel";
@@ -30,6 +31,11 @@ export default function PaginaSupervisor() {
 }
 
 async function ContenidoSupervisor() {
+  // Los paneles dependen de la fecha y hora actuales (corte de turno, semana
+  // vigente): connection() le avisa a Next que se arman en cada pedido y no
+  // se pueden prerenderizar. Sin esto, el build de producción falla al
+  // encontrar new Date() durante el prerender.
+  await connection();
   await exigirSesion(esRolSupervisor);
   const [usuarios, convocados] = await Promise.all([leerUsuarios(), leerConvocadosSemana()]);
 

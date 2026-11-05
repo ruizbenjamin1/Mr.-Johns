@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { BookOpen, ClipboardCheck, Loader2 } from "lucide-react";
 import { EncabezadoPanel } from "@/components/encabezado-panel";
@@ -41,6 +42,11 @@ function Cargando() {
 }
 
 async function ContenidoDashboard() {
+  // Los paneles dependen de la fecha y hora actuales (corte de turno, semana
+  // vigente): connection() le avisa a Next que se arman en cada pedido y no
+  // se pueden prerenderizar. Sin esto, el build de producción falla al
+  // encontrar new Date() durante el prerender.
+  await connection();
   const sesion = await exigirSesion();
   const esDeBarra = esRolDeBarra(sesion.rol);
 

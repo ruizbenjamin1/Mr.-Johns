@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Loader2, UserPlus, UsersRound } from "lucide-react";
 import { EncabezadoCargando, EncabezadoPanel } from "@/components/encabezado-panel";
@@ -52,6 +53,11 @@ export default function PaginaAdmin() {
 }
 
 async function ContenidoAdmin() {
+  // Los paneles dependen de la fecha y hora actuales (corte de turno, semana
+  // vigente): connection() le avisa a Next que se arman en cada pedido y no
+  // se pueden prerenderizar. Sin esto, el build de producción falla al
+  // encontrar new Date() durante el prerender.
+  await connection();
   await exigirSesion(soloAdmin);
   const [usuarios, agendas, convocados, desbloqueado] = await Promise.all([
     leerUsuarios(),

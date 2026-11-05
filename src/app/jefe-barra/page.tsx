@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 import { Loader2, Settings, UserPlus } from "lucide-react";
 import { panelDesbloqueado } from "@/app/acciones/usuarios";
@@ -48,6 +49,11 @@ export default function PaginaJefeBarra() {
 }
 
 async function ContenidoJefeBarra() {
+  // Los paneles dependen de la fecha y hora actuales (corte de turno, semana
+  // vigente): connection() le avisa a Next que se arman en cada pedido y no
+  // se pueden prerenderizar. Sin esto, el build de producción falla al
+  // encontrar new Date() durante el prerender.
+  await connection();
   const sesion = await exigirSesion(adminOJefeBarra);
   const [usuarios, agendas, convocados, desbloqueado, stock] = await Promise.all([
     leerUsuarios(),
