@@ -1,4 +1,4 @@
-// Productos de stock y barras que se cuentan (antes en legacy/supabase_client.js).
+// Productos de stock y barras que se cuentan (antes en supabase_client.js).
 
 export type ProductoStock = { categoria: string; nombre: string };
 

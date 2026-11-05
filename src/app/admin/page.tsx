@@ -16,7 +16,7 @@ import { exigirSesion, leerAgendas, leerConvocadosSemana, leerUsuarios, soloAdmi
 import { panelDesbloqueado } from "@/app/acciones/usuarios";
 import { ExportarMozos } from "./exportar-mozos";
 
-// Panel de Administración (antes legacy/admin.html + admin.js).
+// Panel de Administración (antes admin.html + admin.js).
 // Convoca solo MOZOS: los bartenders se convocan desde Jefe de Barra.
 
 const CONFIG_MOZOS: ConfigConvocatoria = {

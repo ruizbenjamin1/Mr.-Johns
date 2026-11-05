@@ -1,4 +1,4 @@
-// Carta del bar (antes dentro de legacy/Dashboard.js).
+// Carta del bar (antes dentro de Dashboard.js).
 
 export type Plato = { nombre: string; descripcion: string; etiqueta: string | null };
 export type Bebida = { nombre: string; descripcion: string };

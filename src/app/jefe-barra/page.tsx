@@ -19,7 +19,7 @@ import type { ProgresoStock } from "@/lib/tipos";
 import { SECTORES_BARRA } from "@/lib/stock";
 import { ExportarBarras, PropinasBarras } from "./propinas-barras";
 
-// Panel de Jefe de Barra (antes legacy/jefe_barra.html + jefe_barra.js).
+// Panel de Jefe de Barra (antes jefe_barra.html + jefe_barra.js).
 // Gestiona solo rol "bartender": el Jefe de Barra es gestión, no personal convocable.
 
 const CONFIG_BARTENDERS: ConfigConvocatoria = {

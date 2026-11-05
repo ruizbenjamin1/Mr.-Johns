@@ -23,7 +23,7 @@ import { BlocNotas } from "./bloc-notas";
 import { ListaBebidas, ListaComidas } from "./carta";
 import { ConteoStock } from "./conteo-stock";
 
-// Panel del personal (antes legacy/Dashboard.html + Dashboard.js).
+// Panel del personal (antes Dashboard.html + Dashboard.js).
 export default function PaginaDashboard() {
   return (
     <Suspense fallback={<Cargando />}>

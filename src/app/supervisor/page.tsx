@@ -8,7 +8,7 @@ import { obtenerDiaHoy, textoHoy } from "@/lib/turno";
 import { EquipoDelDia } from "./equipo-del-dia";
 import { Propinas } from "./propinas";
 
-// Panel de Supervisor (antes legacy/supervisor.html + supervisor.js).
+// Panel de Supervisor (antes supervisor.html + supervisor.js).
 // Es de solo lectura: no tiene ningún botón que escriba en la base.
 export default function PaginaSupervisor() {
   return (

@@ -1,4 +1,4 @@
-// Fechas y días del turno (antes en legacy/supabase_client.js).
+// Fechas y días del turno (antes en supabase_client.js).
 //
 // IMPORTANTE: todo se calcula con la hora de Argentina, no con la del lugar
 // donde corre el código. Antes todo corría en el navegador (que ya estaba en

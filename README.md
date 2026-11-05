@@ -19,7 +19,6 @@ npm run dev                  # http://localhost:3000
 - `src/proxy.ts` — control de acceso por rol antes de mostrar cada página
 - `src/lib/roles.ts` — roles y a qué página va cada uno
 - `src/components/ui/` — componentes de shadcn
-- `legacy/` — el sistema anterior en HTML + JS, de referencia mientras dura la migración
 
 ## Variables de entorno
 
@@ -47,4 +46,6 @@ Todas están en `.env.example`. En Vercel se cargan en *Settings → Environment
 - [x] Panel de Administración
 - [x] Panel de Jefe de Barra
 - [x] Panel de Supervisor
-- [ ] Probar todo con datos reales y borrar `legacy/`
+- [x] Probado con datos reales; sistema viejo (`legacy/`) eliminado
+
+El sistema anterior en HTML + JS sigue disponible en el historial de git (commit `a0c1cc4`).
