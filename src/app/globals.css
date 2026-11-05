@@ -1,0 +1,106 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Paleta de Mr. Johns llevada a las variables de shadcn.
+   Los valores salen de legacy/estilos_pro.css: oscuro por defecto,
+   claro como alternativa (next-themes pone la clase "dark" en <html>). */
+
+:root {
+  /* Tema claro */
+  --background: #f3f4f7;
+  --foreground: #1c1f26;
+  --card: #ffffff;
+  --card-foreground: #0b0d10;
+  --popover: #ffffff;
+  --popover-foreground: #0b0d10;
+  --primary: #f39c12; /* oro premium */
+  --primary-foreground: #0b0b0e;
+  --secondary: #f1f3f6;
+  --secondary-foreground: #1c1f26;
+  --muted: #f1f3f6;
+  --muted-foreground: #5b6472;
+  --accent: #f1f3f6;
+  --accent-foreground: #1c1f26;
+  --destructive: #e11d48;
+  --border: #dde1e6;
+  --input: #dde1e6;
+  --ring: #f39c12;
+  --radius: 0.75rem;
+
+  /* Acentos propios del sistema (no cambian entre temas) */
+  --barra: #00e5ff; /* cyan del jefe de barra */
+  --exito: #00e676;
+  --aviso: #ffea00;
+}
+
+.dark {
+  --background: #0b0b0e;
+  --foreground: #f1f2f6;
+  --card: #14141c;
+  --card-foreground: #ffffff;
+  --popover: #14141c;
+  --popover-foreground: #ffffff;
+  --primary: #f39c12;
+  --primary-foreground: #0b0b0e;
+  --secondary: #1b1b26;
+  --secondary-foreground: #f1f2f6;
+  --muted: #1b1b26;
+  --muted-foreground: #cbd5e1;
+  --accent: #1e1e2f;
+  --accent-foreground: #ffffff;
+  --destructive: #ff1744;
+  --border: #262636;
+  --input: #262636;
+  --ring: #f39c12;
+}
+
+@theme inline {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-barra: var(--barra);
+  --color-exito: var(--exito);
+  --color-aviso: var(--aviso);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* Fondo radial del login (igual que .fondo-radial del sistema viejo) */
+.fondo-radial {
+  background: radial-gradient(circle at center, var(--card) 0%, var(--background) 100%);
+}
+
+/* El logo es negro sobre blanco: en oscuro se invierte y se funde con la tarjeta */
+.dark .logo-tema {
+  filter: invert(1) brightness(1.2);
+  mix-blend-mode: screen;
+}
