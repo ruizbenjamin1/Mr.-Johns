@@ -185,10 +185,11 @@ function FilaConvocado({
               type="number"
               inputMode="numeric"
               min={0}
-              value={propina}
+              // En 0 el campo queda vacío (el "0" es solo el placeholder) para escribir directo
+              value={propina === 0 ? "" : propina}
               onChange={(e) => setPropina(usuario.user_name, Number(e.target.value) || 0)}
               onBlur={guardarPropina}
-              placeholder="Propina"
+              placeholder="0"
               aria-label={`Propina de ${nombre}`}
               className="h-8 pl-6"
             />

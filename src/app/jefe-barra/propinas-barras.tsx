@@ -58,7 +58,9 @@ export function PropinasBarras() {
                     type="number"
                     inputMode="numeric"
                     min={0}
-                    value={propinas[sector] ?? 0}
+                    // En 0 el campo queda vacío (el "0" es solo el placeholder) para escribir directo
+                    value={propinas[sector] ? propinas[sector] : ""}
+                    placeholder="0"
                     onChange={(e) => setPropina(sector, Number(e.target.value) || 0)}
                     onBlur={() => guardar(sector)}
                     aria-label={`Propina de la barra ${sector}`}
