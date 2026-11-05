@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { History, Loader2, Search } from "lucide-react";
+import { EsqueletoTabla } from "@/components/esqueletos";
 import { toast } from "sonner";
 import { historialStock, semanasHistorial, type FilaHistorial } from "@/app/acciones/planilla";
 import { Seccion, TextoVacio } from "@/components/panel/seccion";
@@ -77,7 +78,9 @@ export function HistorialStock() {
         </Button>
       </div>
 
-      {errorFilas ? (
+      {cargando ? (
+        <EsqueletoTabla filas={6} columnas={6} />
+      ) : errorFilas ? (
         <TextoVacio error>{errorFilas}</TextoVacio>
       ) : filas === null ? (
         <TextoVacio>Elegí una semana y tocá &quot;Ver&quot; para consultar el historial.</TextoVacio>

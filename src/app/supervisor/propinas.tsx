@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HandCoins, Loader2 } from "lucide-react";
+import { HandCoins } from "lucide-react";
+import { EsqueletoLista } from "@/components/esqueletos";
 import { propinasPlanilla, type FilaPropina } from "@/app/acciones/planilla";
 import { Seccion, TextoVacio } from "@/components/panel/seccion";
 import { Badge } from "@/components/ui/badge";
@@ -71,10 +72,7 @@ export function Propinas() {
       {error ? (
         <TextoVacio error>{error}</TextoVacio>
       ) : filas === null ? (
-        <p className="text-muted-foreground flex items-center justify-center gap-2 py-2 text-sm">
-          <Loader2 className="size-4 animate-spin" />
-          Cargando...
-        </p>
+        <EsqueletoLista items={3} />
       ) : visibles.length === 0 ? (
         <TextoVacio>No hay propinas cargadas para esa búsqueda.</TextoVacio>
       ) : (

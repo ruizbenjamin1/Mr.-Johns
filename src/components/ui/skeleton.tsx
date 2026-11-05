@@ -1,0 +1,8 @@
+import { cn } from "@/lib/utils";
+
+// Bloque gris que late mientras carga (el Skeleton de shadcn).
+function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
+  return <div data-slot="skeleton" aria-hidden className={cn("bg-accent animate-pulse rounded-md", className)} {...props} />;
+}
+
+export { Skeleton };

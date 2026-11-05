@@ -1,8 +1,9 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { Loader2, Settings, UserPlus } from "lucide-react";
+import { Settings, UserPlus } from "lucide-react";
 import { panelDesbloqueado } from "@/app/acciones/usuarios";
-import { EncabezadoCargando, EncabezadoPanel } from "@/components/encabezado-panel";
+import { EncabezadoPanel } from "@/components/encabezado-panel";
+import { EsqueletoEncabezado, EsqueletoPanelConvocatoria } from "@/components/esqueletos";
 import {
   ProveedorPanel,
   SeccionConvocados,
@@ -35,15 +36,11 @@ const CONFIG_BARTENDERS: ConfigConvocatoria = {
 export default function PaginaJefeBarra() {
   return (
     <>
-      <Suspense fallback={<EncabezadoCargando />}>
+      <Suspense fallback={<EsqueletoEncabezado />}>
         <EncabezadoPanel titulo="Jefe de Barra" />
       </Suspense>
       <Suspense
-        fallback={
-          <div className="flex flex-1 items-center justify-center py-20">
-            <Loader2 className="text-muted-foreground size-6 animate-spin" />
-          </div>
-        }
+        fallback={<EsqueletoPanelConvocatoria extra={4} />}
       >
         <ContenidoJefeBarra />
       </Suspense>

@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, CloudOff, Loader2, Search, Send } from "lucide-react";
+import { EsqueletoTabla } from "@/components/esqueletos";
 import { toast } from "sonner";
 import { enviarStockFinal, enviarStockInicial, guardarProgresoStock, obtenerProgresoStock } from "@/app/acciones/stock";
 import { Button } from "@/components/ui/button";
@@ -418,10 +419,7 @@ export function ConteoStock({ iaDisponible = false }: { iaDisponible?: boolean }
       </div>
 
       {cargandoBarra ? (
-        <p className="text-muted-foreground flex items-center justify-center gap-2 py-6 text-sm">
-          <Loader2 className="size-4 animate-spin" />
-          Cargando el conteo de {barra}...
-        </p>
+        <EsqueletoTabla filas={8} columnas={3} />
       ) : (
         <Table>
           <TableHeader>

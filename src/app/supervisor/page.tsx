@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { Loader2 } from "lucide-react";
-import { EncabezadoCargando, EncabezadoPanel } from "@/components/encabezado-panel";
+import { EncabezadoPanel } from "@/components/encabezado-panel";
+import { EsqueletoEncabezado, EsqueletoPanelSupervisor } from "@/components/esqueletos";
 import { HistorialStock } from "@/components/panel/historial-stock";
 import { Reposicion } from "@/components/panel/reposicion";
 import { exigirSesion, leerConvocadosSemana, leerUsuarios } from "@/lib/datos";
@@ -15,15 +15,11 @@ import { Propinas } from "./propinas";
 export default function PaginaSupervisor() {
   return (
     <>
-      <Suspense fallback={<EncabezadoCargando />}>
+      <Suspense fallback={<EsqueletoEncabezado />}>
         <EncabezadoPanel titulo="Panel de Supervisor" />
       </Suspense>
       <Suspense
-        fallback={
-          <div className="flex flex-1 items-center justify-center py-20">
-            <Loader2 className="text-muted-foreground size-6 animate-spin" />
-          </div>
-        }
+        fallback={<EsqueletoPanelSupervisor />}
       >
         <ContenidoSupervisor />
       </Suspense>

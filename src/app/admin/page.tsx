@@ -1,7 +1,8 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { Loader2, UserPlus, UsersRound } from "lucide-react";
-import { EncabezadoCargando, EncabezadoPanel } from "@/components/encabezado-panel";
+import { UserPlus, UsersRound } from "lucide-react";
+import { EncabezadoPanel } from "@/components/encabezado-panel";
+import { EsqueletoEncabezado, EsqueletoPanelConvocatoria } from "@/components/esqueletos";
 import {
   ProveedorPanel,
   SeccionConvocados,
@@ -39,15 +40,11 @@ const CATEGORIAS = [
 export default function PaginaAdmin() {
   return (
     <>
-      <Suspense fallback={<EncabezadoCargando />}>
+      <Suspense fallback={<EsqueletoEncabezado />}>
         <EncabezadoPanel titulo="Panel de Administración" />
       </Suspense>
       <Suspense
-        fallback={
-          <div className="flex flex-1 items-center justify-center py-20">
-            <Loader2 className="text-muted-foreground size-6 animate-spin" />
-          </div>
-        }
+        fallback={<EsqueletoPanelConvocatoria />}
       >
         <ContenidoAdmin />
       </Suspense>

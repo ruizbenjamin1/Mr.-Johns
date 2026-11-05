@@ -30,7 +30,4 @@ export async function EncabezadoPanel({ titulo, detalle }: { titulo: string; det
   );
 }
 
-/** Placeholder del encabezado mientras carga (mismo alto, sin saltos). */
-export function EncabezadoCargando() {
-  return <div className="bg-card/80 h-16 border-b" />;
-}
+

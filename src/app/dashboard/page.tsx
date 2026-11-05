@@ -1,7 +1,8 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { BookOpen, ClipboardCheck, Loader2 } from "lucide-react";
+import { BookOpen, ClipboardCheck } from "lucide-react";
 import { EncabezadoPanel } from "@/components/encabezado-panel";
+import { EsqueletoPanelPersonal } from "@/components/esqueletos";
 import { Seccion } from "@/components/panel/seccion";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -30,19 +31,12 @@ import { ConteoStock } from "./conteo-stock";
 // Panel del personal (antes Dashboard.html + Dashboard.js).
 export default function PaginaDashboard() {
   return (
-    <Suspense fallback={<Cargando />}>
+    <Suspense fallback={<EsqueletoPanelPersonal />}>
       <ContenidoDashboard />
     </Suspense>
   );
 }
 
-function Cargando() {
-  return (
-    <div className="flex flex-1 items-center justify-center py-20">
-      <Loader2 className="text-muted-foreground size-6 animate-spin" />
-    </div>
-  );
-}
 
 async function ContenidoDashboard() {
   // Los paneles dependen de la fecha y hora actuales (corte de turno, semana

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, PackagePlus, Sparkles } from "lucide-react";
+import { EsqueletoLista } from "@/components/esqueletos";
+import { Skeleton } from "@/components/ui/skeleton";
 import { recomendarReposicion, type Recomendacion } from "@/app/acciones/reposicion";
 import { semanasHistorial } from "@/app/acciones/planilla";
 import { Seccion, TextoVacio } from "@/components/panel/seccion";
@@ -85,7 +87,14 @@ export function Reposicion() {
 
       {error && <TextoVacio error>{error}</TextoVacio>}
 
-      {resultado && (
+      {cargando && (
+        <div className="grid gap-3">
+          <Skeleton className="h-14 w-full" />
+          <EsqueletoLista items={4} />
+        </div>
+      )}
+
+      {resultado && !cargando && (
         <div className="grid gap-3">
           <div className="flex flex-wrap gap-2 text-xs">
             {Object.entries(resultado.calculo.barras).map(([barra, estado]) => (

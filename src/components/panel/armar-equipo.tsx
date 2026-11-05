@@ -8,6 +8,8 @@ import {
   UserPlus,
   Wand2,
 } from "lucide-react";
+import { EsqueletoLista } from "@/components/esqueletos";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   convocarEquipo,
@@ -137,7 +139,14 @@ export function ArmarEquipo({
             </Button>
           </div>
 
-          {sugerencia && (
+          {cargando && (
+            <div className="grid gap-3">
+              <Skeleton className="h-4 w-4/5" />
+              <EsqueletoLista items={4} />
+            </div>
+          )}
+
+          {sugerencia && !cargando && (
             <div className="grid gap-3">
               {diaSugerencia !== dia && (
                 <p className="text-sm text-amber-700 dark:text-amber-400">
