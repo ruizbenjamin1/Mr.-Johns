@@ -1,5 +1,6 @@
-// Reparto de la propina de los mozos.
+// Reparto de propinas.
 //
+// === MOZOS ===
 // Regla del bar: todo lo que juntaron los mozos esa noche se suma y va para
 // quien trabaja en Cocina. Si además algún mozo terminó la noche en $0, el
 // total se divide en partes iguales entre Cocina y esos mozos.
@@ -50,16 +51,43 @@ export function repartirPropinasMozos(mozos: PropinaMozo[]): ResultadoReparto {
     ...montos.filter((m) => !esCocina(m.sector) && m.juntado === 0),
   ].map((m) => m.userName);
 
-  // Partes iguales en pesos enteros. Si no divide justo, los pesos que sobran
-  // van uno a cada uno desde el principio (Cocina primero), así la suma de lo
-  // que cobra cada uno siempre da exactamente el total.
-  const parte = Math.floor(total / beneficiarios.length);
-  const resto = total - parte * beneficiarios.length;
-
-  const cobra: Record<string, number> = Object.fromEntries(montos.map((m) => [m.userName, 0]));
-  beneficiarios.forEach((userName, i) => {
-    cobra[userName] = parte + (i < resto ? 1 : 0);
-  });
+  // Cocina primero: si sobra algún peso al dividir, le toca a Cocina.
+  const partes = dividirEnPartesIguales(total, beneficiarios);
+  const cobra: Record<string, number> = Object.fromEntries(montos.map((m) => [m.userName, partes[m.userName] ?? 0]));
 
   return { cobra, total, beneficiarios, hayCocina: true };
+}
+
+/**
+ * Divide un monto en partes iguales de pesos enteros. Si no divide justo, los
+ * pesos que sobran van de a uno desde el principio de la lista, así la suma
+ * de las partes siempre da exactamente el total.
+ */
+export function dividirEnPartesIguales(total: number, personas: string[]): Record<string, number> {
+  if (personas.length === 0) return {};
+  const parte = Math.floor(total / personas.length);
+  const resto = total - parte * personas.length;
+  return Object.fromEntries(personas.map((p, i) => [p, parte + (i < resto ? 1 : 0)]));
+}
+
+// === BARTENDERS ===
+// Regla del bar: se suma la propina de todas las barras de la noche y se
+// divide en partes iguales entre todos los bartenders convocados ese día.
+//
+//   Principal $20.000 + Vip $9.000 = $29.000 ÷ 3 bartenders → $9.667 · $9.667 · $9.666
+
+export type ResultadoRepartoBarras = {
+  cobra: Record<string, number>;
+  total: number;
+  /** Lo que cobra cada uno si divide justo (si no, algunos cobran $1 más). */
+  porPersona: number;
+};
+
+export function repartirPropinasBarras(bartenders: string[], montosPorBarra: number[]): ResultadoRepartoBarras {
+  const total = montosPorBarra.reduce((suma, m) => suma + Math.max(0, Math.round(Number(m) || 0)), 0);
+  return {
+    cobra: dividirEnPartesIguales(total, bartenders),
+    total,
+    porPersona: bartenders.length ? Math.floor(total / bartenders.length) : 0,
+  };
 }

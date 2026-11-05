@@ -12,8 +12,9 @@ import { formatearPesos } from "@/lib/numeros";
 type Tipo = "barras" | "mozos";
 
 // Propinas leídas de la planilla.
-// "Barras": una fila por bartender convocado; los de una misma barra tienen el
-// mismo monto (es el total de la barra), y el Apps Script ya no lo cuenta dos veces.
+// "Barras": hasta el 4/11/2026 cada fila tenía el total de la barra y el Apps
+// Script lo agrupa por barra; desde el 5/11 la propina se divide entre todos
+// los bartenders y cada fila es lo que cobra esa persona (viene con nombre).
 // "Mozos": cada fila es la propina individual de una persona.
 export function Propinas() {
   const [tipo, setTipo] = useState<Tipo>("barras");
@@ -81,8 +82,10 @@ export function Propinas() {
           {visibles.map((f, i) => (
             <div key={`${f.fecha}-${f.barra}-${f.nombre}-${i}`} className="bg-muted/30 flex items-center justify-between gap-3 rounded-lg border p-3">
               <div className="min-w-0">
-                <p className="font-bold">{tipo === "mozos" ? f.nombre || "Sin nombre" : f.barra}</p>
-                <p className="text-muted-foreground text-sm">{tipo === "mozos" ? `${f.barra || ""} · ${f.fecha}` : f.fecha}</p>
+                {/* Con nombre: lo que cobra esa persona (mozos, y bartenders desde el 5/11/2026,
+                    cuando la propina de barra empezó a dividirse entre todos). Sin nombre: total de la barra (días anteriores). */}
+                <p className="font-bold">{f.nombre ? f.nombre : tipo === "mozos" ? "Sin nombre" : f.barra}</p>
+                <p className="text-muted-foreground text-sm">{f.nombre ? `${f.barra || ""} · ${f.fecha}` : f.fecha}</p>
               </div>
               <Badge variant="exito" className="px-3 py-1.5 text-sm">
                 ${formatearPesos(Number(f.monto || 0))}

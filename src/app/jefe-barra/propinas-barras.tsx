@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, Martini } from "lucide-react";
+import { Banknote, Martini, Users } from "lucide-react";
 import { toast } from "sonner";
 import { exportarBarras, guardarPropinaBarra } from "@/app/acciones/convocatoria";
 import { BotonExportar } from "@/components/panel/boton-exportar";
@@ -10,13 +10,30 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatearPesos } from "@/lib/numeros";
+import { repartirPropinasBarras } from "@/lib/propinas";
 import { SECTORES_BARRA } from "@/lib/stock";
+import { esConvocadoDelDia } from "@/lib/turno";
+import type { Convocado, Usuario } from "@/lib/tipos";
+
+/** Bartenders convocados ese día (los mismos que se exportan). */
+function convocadosDelDia(bartenders: Usuario[], convocados: Convocado[], dia: string) {
+  return convocados
+    .filter((c) => esConvocadoDelDia(c.dia, dia))
+    .map((c) => ({ convocado: c, usuario: bartenders.find((u) => u.user_name === c.user_name) }))
+    .filter((f): f is { convocado: Convocado; usuario: Usuario } => !!f.usuario);
+}
 
 // Propinas por sector de barra. Siempre arrancan en $0 (no se precarga el
 // último monto): solo cambian si el Jefe de Barra las carga a mano.
-export function PropinasBarras() {
+// Abajo se ve cómo se divide el total entre los bartenders convocados del día.
+export function PropinasBarras({ bartenders, convocados }: { bartenders: Usuario[]; convocados: Convocado[] }) {
   const { dia, propinas, setPropina } = usePanel();
-  const total = SECTORES_BARRA.reduce((suma, s) => suma + (propinas[s] ?? 0), 0);
+  const delDia = convocadosDelDia(bartenders, convocados, dia);
+  const reparto = repartirPropinasBarras(
+    delDia.map((f) => f.usuario.user_name),
+    SECTORES_BARRA.map((s) => propinas[s] ?? 0)
+  );
+  const total = reparto.total;
 
   async function guardar(sector: string) {
     const r = await guardarPropinaBarra(sector, dia, propinas[sector] ?? 0);
@@ -72,6 +89,35 @@ export function PropinasBarras() {
           ))}
         </TableBody>
       </Table>
+
+      <div className="mt-4 grid gap-2">
+        <h3 className="flex items-center gap-1.5 text-xs font-bold tracking-wide text-cyan-700 uppercase dark:text-barra">
+          <Users className="size-4" />
+          {delDia.length > 0
+            ? `Se divide entre ${delDia.length} ${delDia.length === 1 ? "bartender" : "bartenders"}`
+            : "División por bartender"}
+        </h3>
+        {delDia.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            No hay bartenders convocados el {dia}: no hay entre quiénes dividir.
+          </p>
+        ) : (
+          delDia.map(({ usuario, convocado }) => (
+            <div
+              key={usuario.user_name}
+              className="bg-muted/30 flex items-center justify-between gap-3 rounded-lg border px-3 py-2"
+            >
+              <div className="min-w-0">
+                <p className="font-semibold">{usuario.nombre_real || usuario.user_name}</p>
+                <p className="text-muted-foreground text-xs">Barra {convocado.sector || "Principal"}</p>
+              </div>
+              <Badge variant={reparto.cobra[usuario.user_name] > 0 ? "barra" : "apagado"} className="px-3 py-1 text-sm">
+                Cobra ${formatearPesos(reparto.cobra[usuario.user_name] ?? 0)}
+              </Badge>
+            </div>
+          ))
+        )}
+      </div>
     </Seccion>
   );
 }

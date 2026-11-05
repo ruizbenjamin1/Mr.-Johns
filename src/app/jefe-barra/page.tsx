@@ -72,7 +72,7 @@ async function ContenidoJefeBarra() {
         <SeccionGrilla personal={bartenders} agendas={agendas} convocados={convocados} etiquetaConvocado="Barra" />
         <SeccionConvocados personal={bartenders} agendas={agendas} convocados={convocados} config={CONFIG_BARTENDERS} />
         <SeccionDisponibles personal={bartenders} agendas={agendas} convocados={convocados} config={CONFIG_BARTENDERS} />
-        <PropinasBarras />
+        <PropinasBarras bartenders={bartenders} convocados={convocados} />
         <HistorialStock />
         <ResumenStock progreso={stock.filas} error={stock.error} />
 

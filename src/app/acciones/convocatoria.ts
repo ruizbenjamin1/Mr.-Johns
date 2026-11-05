@@ -10,7 +10,7 @@ import {
   llamarRpc,
 } from "@/lib/datos";
 import { enviarAPlanilla } from "@/lib/apps-script";
-import { repartirPropinasMozos } from "@/lib/propinas";
+import { repartirPropinasBarras, repartirPropinasMozos } from "@/lib/propinas";
 import { DIAS_SEMANA, esConvocadoDelDia, fechaHoyArgentina, obtenerLunesSemanaActual } from "@/lib/turno";
 
 // Convocatoria, sectores y propinas (paneles de Administración y Jefe de Barra).
@@ -126,7 +126,8 @@ export async function exportarMozos(dia: string, propinas: Record<string, number
 }
 
 /**
- * Exporta los BARTENDERS convocados del día con la propina de su barra.
+ * Exporta los BARTENDERS convocados del día con lo que cobra cada uno (el
+ * total de todas las barras dividido en partes iguales).
  * Si la planilla confirma, las propinas de barra vuelven a $0.
  */
 export async function exportarBarras(dia: string, propinasPorSector: Record<string, number>) {
@@ -142,20 +143,25 @@ export async function exportarBarras(dia: string, propinasPorSector: Record<stri
     }
 
     const [convocados, usuarios] = await Promise.all([leerConvocadosSemana(), leerUsuarios()]);
-    const filas = convocados
+    const bartenders = convocados
       .filter((c) => esConvocadoDelDia(c.dia, dia))
       .map((c) => ({ convocado: c, usuario: usuarios.find((u) => u.user_name === c.user_name) }))
-      .filter((f) => f.usuario?.rol === "bartender")
-      .map(({ convocado, usuario }) => {
-        const sector = convocado.sector || "Principal";
-        return {
-          semana: fechaHoyArgentina(),
-          usuario: usuario!.nombre_real || convocado.user_name,
-          rol: `Bartender (${dia})`,
-          sector,
-          propina: mapa[sector.toLowerCase().trim()] ?? 0,
-        };
-      });
+      .filter((f) => f.usuario?.rol === "bartender");
+
+    // La propina de todas las barras se suma y se divide en partes iguales
+    // entre los bartenders convocados del día. A la planilla va lo que cobra
+    // cada uno. Ver lib/propinas.ts.
+    const reparto = repartirPropinasBarras(
+      bartenders.map((f) => f.convocado.user_name),
+      Object.values(mapa)
+    );
+    const filas = bartenders.map(({ convocado, usuario }) => ({
+      semana: fechaHoyArgentina(),
+      usuario: usuario!.nombre_real || convocado.user_name,
+      rol: `Bartender (${dia})`,
+      sector: convocado.sector || "Principal",
+      propina: reparto.cobra[convocado.user_name] ?? 0,
+    }));
 
     if (filas.length === 0) throw new Error(`No hay bartenders convocados para el ${dia}`);
 
