@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { EncabezadoCargando, EncabezadoPanel } from "@/components/encabezado-panel";
 import { HistorialStock } from "@/components/panel/historial-stock";
+import { Reposicion } from "@/components/panel/reposicion";
 import { exigirSesion, leerConvocadosSemana, leerUsuarios } from "@/lib/datos";
 import { esRolSupervisor } from "@/lib/roles";
 import { obtenerDiaHoy, textoHoy } from "@/lib/turno";
@@ -43,6 +44,7 @@ async function ContenidoSupervisor() {
     <main className="mx-auto grid w-full max-w-5xl flex-1 gap-6 px-4 py-6 pb-24">
       <EquipoDelDia usuarios={usuarios} convocados={convocados} diaHoy={obtenerDiaHoy()} textoHoy={textoHoy()} />
       <HistorialStock />
+      <Reposicion />
       <Propinas />
     </main>
   );

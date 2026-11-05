@@ -11,6 +11,7 @@ import {
   type ConfigConvocatoria,
 } from "@/components/panel/convocatoria";
 import { HistorialStock } from "@/components/panel/historial-stock";
+import { Reposicion } from "@/components/panel/reposicion";
 import { ResumenStock } from "@/components/panel/resumen-stock";
 import { Seccion } from "@/components/panel/seccion";
 import { BotonOcultar, FormularioAlta, PanelBloqueado, TablaUsuarios } from "@/components/panel/usuarios";
@@ -74,6 +75,7 @@ async function ContenidoJefeBarra() {
         <SeccionDisponibles personal={bartenders} agendas={agendas} convocados={convocados} config={CONFIG_BARTENDERS} />
         <PropinasBarras bartenders={bartenders} convocados={convocados} />
         <HistorialStock />
+        <Reposicion />
         <ResumenStock progreso={stock.filas} error={stock.error} />
 
         <Seccion titulo="Registrar Nuevo Bartender" icono={UserPlus}>

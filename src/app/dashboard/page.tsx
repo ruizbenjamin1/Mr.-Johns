@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { exigirSesion, leerAgenda, leerConvocadosSemana, leerUsuario, llamarRpc } from "@/lib/datos";
+import { iaDisponible } from "@/lib/ia-stock";
 import { esRolDeBarra } from "@/lib/roles";
 import {
   CLAVES_DIAS,
@@ -155,7 +156,7 @@ async function ContenidoDashboard() {
             {esDeBarra ? (
               // forceMount: el conteo no se pierde al pasar a Bebidas y volver
               <TabsContent value="stock" forceMount className="data-[state=inactive]:hidden">
-                <ConteoStock />
+                <ConteoStock iaDisponible={iaDisponible()} />
               </TabsContent>
             ) : (
               <TabsContent value="notas" forceMount className="data-[state=inactive]:hidden">

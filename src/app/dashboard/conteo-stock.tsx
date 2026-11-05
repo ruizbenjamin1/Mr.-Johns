@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { sanearDecimal } from "@/lib/numeros";
+import { CargaIA } from "./carga-ia";
 import { anotarCambio, borrarRespaldo, combinarConRespaldo, leerRespaldo } from "@/lib/respaldo-stock";
 import { BARRAS_STOCK, PRODUCTOS_STOCK } from "@/lib/stock";
 import type { ValoresStock } from "@/lib/tipos";
@@ -52,7 +53,7 @@ type DatosConteo = {
 const DEMORA_GUARDADO_MS = 600; // espera tras la última tecla antes de mandar al servidor
 const REINTENTO_MS = 5000; // si falló el guardado, cada cuánto se reintenta
 
-export function ConteoStock() {
+export function ConteoStock({ iaDisponible = false }: { iaDisponible?: boolean }) {
   const [barra, setBarra] = useState("");
   const [responsable, setResponsable] = useState("");
   const [valores, setValores] = useState<ValoresStock>({});
@@ -241,6 +242,20 @@ export function ConteoStock() {
     }
   }
 
+  // Carga varios productos de una vez (lo que confirmó el bartender en "Cargar con IA").
+  function aplicarValores(items: { producto: string; cantidad: string }[], columna: "inicial" | "final") {
+    if (!barra || items.length === 0) return;
+    const nuevos = { ...valores };
+    for (const { producto, cantidad } of items) {
+      const valor = { inicial: nuevos[producto]?.inicial ?? "", final: nuevos[producto]?.final ?? "", [columna]: cantidad };
+      nuevos[producto] = valor;
+      anotarCambio(barra, { producto, valor });
+    }
+    setValores(nuevos);
+    actualizarDatos({ valores: nuevos });
+    programarGuardado();
+  }
+
   function cambiarResponsable(texto: string) {
     setResponsable(texto);
     actualizarDatos({ responsable: texto });
@@ -380,6 +395,15 @@ export function ConteoStock() {
             </>
           )}
         </p>
+      )}
+
+      {iaDisponible && !cargandoBarra && (
+        <CargaIA
+          barra={barra}
+          columnaSugerida={inicialEnviado ? "final" : "inicial"}
+          valores={valores}
+          onAplicar={aplicarValores}
+        />
       )}
 
       <div className="relative">
