@@ -27,18 +27,13 @@ export async function sugerirEquipo(params: {
 }): Promise<Sugerencia> {
   const { pedido, dia, puesto, sectores, candidatos, yaConvocados } = params;
 
+  // Solo nombre, turnos y nota: el criterio es la cantidad de turnos, no la experiencia.
   const lista = candidatos
-    .map((c, i) => {
-      const habituales = Object.entries(c.sectores)
-        .sort((a, b) => b[1] - a[1])
-        .map(([s, n]) => `${s} ×${n}`)
-        .join(", ");
-      return (
+    .map(
+      (c, i) =>
         `${i + 1}. ${c.nombre} [${c.userName}]: ${c.turnos} turnos en las últimas ${SEMANAS_EQUIDAD} semanas` +
-        (habituales ? `; sectores: ${habituales}` : "") +
         (c.nota ? `; nota: "${c.nota}"` : "")
-      );
-    })
+    )
     .join("\n");
 
   const cliente = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, authToken: null });
@@ -46,14 +41,19 @@ export async function sugerirEquipo(params: {
     model: MODELO,
     max_tokens: 2048,
     system:
-      `Armás el equipo de ${puesto} de un bar en Argentina para una noche. ` +
-      `CRITERIO PRINCIPAL: repartir los turnos parejo. Los candidatos vienen ordenados de menos a más turnos trabajados: ` +
-      `elegí siempre a los primeros de la lista, salvo que el pedido diga explícitamente otra cosa (por ejemplo "sí o sí Lucas"). ` +
-      `Si hay empate, podés usar en qué sector suele trabajar cada uno para repartir sectores con sentido. ` +
+      `Proponés el equipo de ${puesto} de un bar en Argentina para una noche. El encargado revisa y confirma después: ` +
+      `todavía no convocaste a nadie, así que hablá siempre en modo propuesta ("Propongo a…"), nunca "Convocados…". ` +
+      `ÚNICO CRITERIO: la cantidad de turnos. Los candidatos vienen ordenados de menos a más turnos trabajados: ` +
+      `elegí a los primeros de la lista, salvo que el pedido diga explícitamente otra cosa (por ejemplo "sí o sí Lucas"). ` +
+      `No tengas en cuenta experiencia ni sectores donde trabajaron antes. Si hay empate en turnos, cualquiera sirve. ` +
+      `Repartí a los elegidos en los sectores que pide el pedido; si no dice sectores, poné a todos en "Principal". ` +
       `Los ya convocados cuentan para el total que piden: no los repitas, completá lo que falta. ` +
-      `Si el pedido no dice sectores, poné a todos en "Principal". Si pide más personas de las disponibles, elegí a todos y avisalo. ` +
-      `El motivo de cada uno es una frase corta (ej: "Trabajó 1 turno en 4 semanas, el que menos"). ` +
-      `El resumen es una frase. En avisos poné lo que el encargado tenga que saber (faltan personas, una nota que choca con el pedido, etc.).`,
+      `Si pide más personas de las disponibles, elegí a todos y avisalo. ` +
+      `Nombrá a cada persona con su nombre completo tal cual aparece en la lista, sin el usuario entre corchetes. ` +
+      `El motivo de cada uno es una frase corta sobre sus turnos (ej: "2 turnos en 4 semanas, de los que menos"). ` +
+      `El resumen es una frase. En avisos poné solo lo que el encargado tenga que saber: faltan personas, ` +
+      `una nota de la agenda que choca con el pedido, o que dejaste afuera a alguien con menos turnos por un pedido explícito. ` +
+      `Si no hay nada para avisar, dejá avisos vacío.`,
     messages: [
       {
         role: "user",

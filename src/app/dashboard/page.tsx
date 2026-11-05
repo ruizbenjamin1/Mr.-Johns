@@ -11,11 +11,13 @@ import { iaDisponible } from "@/lib/ia-stock";
 import { esRolDeBarra } from "@/lib/roles";
 import {
   CLAVES_DIAS,
+  DIAS_SEMANA,
   esConvocadoDelDia,
   estaDisponibilidadVigente,
   obtenerDiaHoy,
   obtenerLunesDeFecha,
   obtenerLunesSemanaActual,
+  normalizarDiaClave,
   textoRangoSemanaActual,
   yaPasoEsteDiaEnLaSemana,
   type ClaveDia,
@@ -80,17 +82,23 @@ async function ContenidoDashboard() {
     textoSemana: textoRangoSemanaActual(),
   };
 
-  // Convocatoria del DÍA DE HOY (con el corte de turno a las 6 AM).
+  // Convocatorias de toda la semana (no solo la de hoy): así cada uno ve con
+  // tiempo para qué días de los que marcó lo convocaron y dónde.
   const diaHoy = obtenerDiaHoy();
-  const convocadoHoy = convocados.filter((c) => esConvocadoDelDia(c.dia, diaHoy));
+  const convocatorias = Object.fromEntries(
+    convocados.map((c) => [normalizarDiaClave(c.dia || "Sábado"), c.sector || "Principal"])
+  ) as Partial<Record<ClaveDia, string>>;
+  const proximas = CLAVES_DIAS.map((clave, i) => ({ clave, dia: DIAS_SEMANA[i], sector: convocatorias[clave] })).filter(
+    (x) => x.sector && !vencidos[x.clave]
+  );
 
   return (
     <>
       <EncabezadoPanel titulo="Staff Panel" detalle={`${nombre}: ${puesto}`} />
       <main className="mx-auto grid w-full max-w-4xl flex-1 gap-6 px-4 py-6 pb-24">
-        {convocadoHoy.length > 0 && (
+        {proximas.length > 0 && (
           <Seccion
-            titulo="Equipo Convocado para el Turno"
+            titulo="Mis convocatorias de la semana"
             icono={ClipboardCheck}
             tono="exito"
             acciones={<Badge variant="exito">Planilla Oficial</Badge>}
@@ -98,40 +106,41 @@ async function ContenidoDashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Personal</TableHead>
-                  <TableHead className="text-center">Día</TableHead>
+                  <TableHead>Día</TableHead>
                   <TableHead className="text-center">{esDeBarra ? "Barra" : "Sector"}</TableHead>
                   <TableHead className="text-center">Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {convocadoHoy.map((c) => (
-                  <TableRow key={`${c.user_name}-${c.dia}`} className="bg-exito/5">
-                    <TableCell className="font-bold text-emerald-700 dark:text-exito">
-                      {nombre}
-                      <Badge variant="exito" className="ml-2">
-                        Vos (Hoy)
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary">{c.dia || diaHoy}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={esDeBarra ? "barra" : "aviso"} className="uppercase">
-                        {c.sector || "Principal"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center text-xs font-semibold text-emerald-700 dark:text-exito">
-                      Convocado Hoy
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {proximas.map((c) => {
+                  const esHoy = esConvocadoDelDia(c.dia, diaHoy);
+                  return (
+                    <TableRow key={c.clave} className={esHoy ? "bg-exito/5" : undefined}>
+                      <TableCell className="font-bold">
+                        {c.dia}
+                        {esHoy && (
+                          <Badge variant="exito" className="ml-2">
+                            Hoy
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={esDeBarra ? "barra" : "aviso"} className="uppercase">
+                          {c.sector}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-center text-xs font-semibold text-emerald-700 dark:text-exito">
+                        Convocado
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </Seccion>
         )}
 
-        <AgendaSemanal inicial={estadoAgenda} />
+        <AgendaSemanal inicial={estadoAgenda} convocatorias={convocatorias} />
 
         <section className="grid gap-3">
           <h2 className="flex items-center gap-2 font-bold text-amber-700 dark:text-primary">
