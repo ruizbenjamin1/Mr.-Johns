@@ -8,6 +8,24 @@ const ROLES_ADMIN = ["super_admin", "admin", "superadministrador"];
 const ROLES_JEFE_BARRA = ["admin_barra", "administrador_barra", "barman"];
 const ROLES_SUPERVISOR = ["supervisor"];
 
+export const esRolAdmin = (rol: Rol) => ROLES_ADMIN.includes(rol);
+export const esRolJefeBarra = (rol: Rol) => ROLES_JEFE_BARRA.includes(rol);
+export const esRolSupervisor = (rol: Rol) => ROLES_SUPERVISOR.includes(rol);
+
+/**
+ * En el Dashboard, los bartenders (y los jefes de barra si entran ahí) ven
+ * Bebidas + Stock; el resto (mozos) ve Comidas + Bebidas + Notas.
+ */
+export const esRolDeBarra = (rol: Rol) => rol === "bartender" || ROLES_JEFE_BARRA.includes(rol);
+
+/** Roles que se pueden asignar desde el alta / edición de usuarios. */
+export const ROLES_ASIGNABLES = [
+  { valor: "mozo", etiqueta: "Mozo" },
+  { valor: "bartender", etiqueta: "Bartender" },
+  { valor: "admin_barra", etiqueta: "Jefe de Barra" },
+  { valor: "supervisor", etiqueta: "Supervisor" },
+] as const;
+
 export const RUTAS = {
   admin: "/admin",
   jefeBarra: "/jefe-barra",

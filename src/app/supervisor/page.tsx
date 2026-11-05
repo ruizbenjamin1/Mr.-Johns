@@ -1,16 +1,43 @@
 import { Suspense } from "react";
-import { EncabezadoPanel } from "@/components/encabezado-panel";
+import { Loader2 } from "lucide-react";
+import { EncabezadoCargando, EncabezadoPanel } from "@/components/encabezado-panel";
+import { HistorialStock } from "@/components/panel/historial-stock";
+import { exigirSesion, leerConvocadosSemana, leerUsuarios } from "@/lib/datos";
+import { esRolSupervisor } from "@/lib/roles";
+import { obtenerDiaHoy, textoHoy } from "@/lib/turno";
+import { EquipoDelDia } from "./equipo-del-dia";
+import { Propinas } from "./propinas";
 
-// Panel de Supervisor (antes legacy/supervisor.html). Migración pendiente: por ahora solo el esqueleto.
+// Panel de Supervisor (antes legacy/supervisor.html + supervisor.js).
+// Es de solo lectura: no tiene ningún botón que escriba en la base.
 export default function PaginaSupervisor() {
   return (
     <>
-      <Suspense fallback={<div className="bg-card/80 h-16 border-b" />}>
+      <Suspense fallback={<EncabezadoCargando />}>
         <EncabezadoPanel titulo="Panel de Supervisor" />
       </Suspense>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
-        <p className="text-muted-foreground text-sm">Este panel todavía se está migrando.</p>
-      </main>
+      <Suspense
+        fallback={
+          <div className="flex flex-1 items-center justify-center py-20">
+            <Loader2 className="text-muted-foreground size-6 animate-spin" />
+          </div>
+        }
+      >
+        <ContenidoSupervisor />
+      </Suspense>
     </>
+  );
+}
+
+async function ContenidoSupervisor() {
+  await exigirSesion(esRolSupervisor);
+  const [usuarios, convocados] = await Promise.all([leerUsuarios(), leerConvocadosSemana()]);
+
+  return (
+    <main className="mx-auto grid w-full max-w-5xl flex-1 gap-6 px-4 py-6 pb-24">
+      <EquipoDelDia usuarios={usuarios} convocados={convocados} diaHoy={obtenerDiaHoy()} textoHoy={textoHoy()} />
+      <HistorialStock />
+      <Propinas />
+    </main>
   );
 }

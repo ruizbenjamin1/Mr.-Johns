@@ -5,9 +5,9 @@ import { BotonTema } from "@/components/boton-tema";
 import { Button } from "@/components/ui/button";
 import { obtenerSesion } from "@/lib/sesion";
 
-// Barra superior común a todos los paneles: logo, nombre de quien está
-// logueado, cambio de tema y cerrar sesión (antes repetido en cada HTML).
-export async function EncabezadoPanel({ titulo }: { titulo: string }) {
+// Barra superior común a todos los paneles: logo, quién está logueado,
+// cambio de tema y cerrar sesión (antes repetido en cada HTML).
+export async function EncabezadoPanel({ titulo, detalle }: { titulo: string; detalle?: string }) {
   const sesion = await obtenerSesion();
 
   return (
@@ -16,7 +16,7 @@ export async function EncabezadoPanel({ titulo }: { titulo: string }) {
         <Image src="/logo.png" alt="Mr. John's" width={40} height={40} className="logo-tema rounded-md" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{titulo}</p>
-          {sesion && <p className="text-muted-foreground truncate text-xs">{sesion.nombre}</p>}
+          <p className="text-muted-foreground truncate text-xs">{detalle ?? sesion?.nombre}</p>
         </div>
         <BotonTema />
         <form action={cerrarSesion}>
@@ -28,4 +28,9 @@ export async function EncabezadoPanel({ titulo }: { titulo: string }) {
       </div>
     </header>
   );
+}
+
+/** Placeholder del encabezado mientras carga (mismo alto, sin saltos). */
+export function EncabezadoCargando() {
+  return <div className="bg-card/80 h-16 border-b" />;
 }
