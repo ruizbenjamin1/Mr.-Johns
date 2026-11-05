@@ -105,3 +105,14 @@ export async function leerConvocadosSemana(userName?: string): Promise<Convocado
   if (error) throw error;
   return (data as Convocado[]) || [];
 }
+
+/** Convocados desde una semana (inclusive) hasta hoy: para ver cuánto trabajó cada uno. */
+export async function leerConvocadosDesde(semanaLunes: string): Promise<Convocado[]> {
+  const supabase = crearClienteSupabase();
+  const { data, error } = await supabase
+    .from("convocados")
+    .select("user_name, dia, sector, semana_lunes, propina_individual")
+    .gte("semana_lunes", semanaLunes);
+  if (error) throw error;
+  return (data as Convocado[]) || [];
+}

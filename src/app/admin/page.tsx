@@ -15,14 +15,17 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { exigirSesion, leerAgendas, leerConvocadosSemana, leerUsuarios, soloAdmin } from "@/lib/datos";
 import { panelDesbloqueado } from "@/app/acciones/usuarios";
+import { SECTORES_MOZOS } from "@/lib/sectores";
 import { ExportarMozos } from "./exportar-mozos";
+import { ArmarEquipo } from "@/components/panel/armar-equipo";
+import { iaDisponible } from "@/lib/ia-stock";
 
 // Panel de Administración (antes admin.html + admin.js).
 // Convoca solo MOZOS: los bartenders se convocan desde Jefe de Barra.
 
 const CONFIG_MOZOS: ConfigConvocatoria = {
   modo: "mozos",
-  sectores: ["Vip", "Vip/Warhol", "Warhol", "Extension/Altillo", "Principal", "Patio", "Cocina", "Evento"],
+  sectores: SECTORES_MOZOS,
   articuloLugar: "el sector",
 };
 
@@ -71,6 +74,7 @@ async function ContenidoAdmin() {
     <ProveedorPanel>
       <main className="mx-auto grid w-full max-w-5xl flex-1 gap-6 px-4 py-6 pb-24">
         <SeccionGrilla personal={mozos} agendas={agendas} convocados={convocados} etiquetaConvocado="Sector" />
+        <ArmarEquipo puesto="mozos" sectores={SECTORES_MOZOS} iaDisponible={iaDisponible()} />
         <SeccionConvocados personal={mozos} agendas={agendas} convocados={convocados} config={CONFIG_MOZOS} />
         <SeccionDisponibles personal={mozos} agendas={agendas} convocados={convocados} config={CONFIG_MOZOS} />
 

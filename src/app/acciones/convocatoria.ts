@@ -5,13 +5,29 @@ import {
   adminOJefeBarra,
   capturar,
   exigirSesion,
+  leerAgendas,
+  leerConvocadosDesde,
   leerConvocadosSemana,
   leerUsuarios,
   llamarRpc,
 } from "@/lib/datos";
+import { historialPorPersona, ordenarPorEquidad, SEMANAS_EQUIDAD } from "@/lib/equipo";
+import { sugerirEquipo } from "@/lib/ia-convocatoria";
+import { iaDisponible } from "@/lib/ia-stock";
+import { esRolAdmin } from "@/lib/roles";
+import { SECTORES_BARRA, SECTORES_MOZOS } from "@/lib/sectores";
 import { enviarAPlanilla } from "@/lib/apps-script";
 import { repartirPropinasBarras, repartirPropinasMozos } from "@/lib/propinas";
-import { DIAS_SEMANA, esConvocadoDelDia, fechaHoyArgentina, obtenerLunesSemanaActual } from "@/lib/turno";
+import {
+  DIAS_SEMANA,
+  esConvocadoDelDia,
+  estaDisponibilidadVigente,
+  fechaHoyArgentina,
+  normalizarDiaClave,
+  obtenerLunesHaceSemanas,
+  obtenerLunesSemanaActual,
+  type ClaveDia,
+} from "@/lib/turno";
 
 // Convocatoria, sectores y propinas (paneles de Administración y Jefe de Barra).
 // Las RPC vuelven a validar el rol con el token: esto es una segunda barrera.
@@ -172,4 +188,116 @@ export async function exportarBarras(dia: string, propinasPorSector: Record<stri
     }
     return { cantidad: filas.length };
   }, "No se pudo exportar a la planilla");
+}
+
+// === ARMAR EQUIPO CON IA ===
+
+export type SugerenciaEquipo = {
+  elegidos: { userName: string; nombre: string; sector: string; motivo: string; turnos: number }[];
+  noElegidos: { userName: string; nombre: string; turnos: number }[];
+  resumen: string;
+  avisos: string[];
+};
+
+/**
+ * Sugiere a quién convocar según un pedido en lenguaje natural. Los candidatos
+ * se arman acá (disponibles ese día y sin convocar), no se toman del navegador.
+ */
+export async function sugerirEquipoIA(dia: string, puesto: "mozos" | "bartenders", pedido: string) {
+  return capturar<SugerenciaEquipo>(async () => {
+    validarDia(dia);
+    const sesion = await exigirSesion(adminOJefeBarra);
+    if (puesto === "mozos" && !esRolAdmin(sesion.rol)) throw new Error("Solo un administrador convoca mozos");
+    if (!iaDisponible()) throw new Error("La IA todavía no está configurada");
+    if (!pedido.trim()) throw new Error("Escribí qué necesitás, por ejemplo: necesito 4, 2 en Vip y 2 en Principal");
+
+    const rol = puesto === "mozos" ? "mozo" : "bartender";
+    const sectores = puesto === "mozos" ? SECTORES_MOZOS : SECTORES_BARRA;
+    const [usuarios, agendas, semana, historial] = await Promise.all([
+      leerUsuarios(),
+      leerAgendas(),
+      leerConvocadosSemana(),
+      leerConvocadosDesde(obtenerLunesHaceSemanas(SEMANAS_EQUIDAD - 1)),
+    ]);
+    const delPuesto = usuarios.filter((u) => (u.rol || "").toLowerCase().trim() === rol);
+    const nombreDe = (userName: string) => {
+      const u = usuarios.find((x) => x.user_name === userName);
+      return u?.nombre_real || userName;
+    };
+    const convocadosHoy = semana.filter((c) => esConvocadoDelDia(c.dia, dia) && delPuesto.some((u) => u.user_name === c.user_name));
+    const clave = normalizarDiaClave(dia) as ClaveDia;
+    const turnos = historialPorPersona(historial);
+
+    const candidatos = ordenarPorEquidad(
+      delPuesto
+        .filter((u) => !convocadosHoy.some((c) => c.user_name === u.user_name))
+        .map((u) => ({ usuario: u, agenda: agendas.find((a) => a.user_name === u.user_name) }))
+        .filter((x) => !!x.agenda && x.agenda[clave] === true && estaDisponibilidadVigente(clave, x.agenda.updated_at))
+        .map(({ usuario, agenda }) => ({
+          userName: usuario.user_name,
+          nombre: usuario.nombre_real || usuario.user_name,
+          turnos: turnos.get(usuario.user_name)?.turnos ?? 0,
+          sectores: turnos.get(usuario.user_name)?.sectores ?? {},
+          nota: agenda!.observaciones?.trim() || null,
+        }))
+    );
+    if (candidatos.length === 0) throw new Error(`No hay ${puesto} disponibles sin convocar para el ${dia}`);
+
+    const sugerencia = await sugerirEquipo({
+      pedido: pedido.slice(0, 1000),
+      dia,
+      puesto,
+      sectores,
+      candidatos,
+      yaConvocados: convocadosHoy.map((c) => ({ nombre: nombreDe(c.user_name), sector: c.sector || "Principal" })),
+    });
+
+    const datosDe = (userName: string) => candidatos.find((c) => c.userName === userName)!;
+    return {
+      elegidos: sugerencia.elegidos.map((e) => ({ ...e, nombre: datosDe(e.userName).nombre, turnos: datosDe(e.userName).turnos })),
+      noElegidos: candidatos
+        .filter((c) => !sugerencia.elegidos.some((e) => e.userName === c.userName))
+        .map((c) => ({ userName: c.userName, nombre: c.nombre, turnos: c.turnos })),
+      resumen: sugerencia.resumen,
+      avisos: sugerencia.avisos,
+    };
+  }, "No se pudo armar la sugerencia");
+}
+
+/** Convoca a varios de una vez con su sector (lo que confirmó el encargado). */
+export async function convocarEquipo(
+  dia: string,
+  puesto: "mozos" | "bartenders",
+  elegidos: { userName: string; sector: string }[]
+) {
+  return capturar(async () => {
+    validarDia(dia);
+    const sesion = await exigirSesion(adminOJefeBarra);
+    if (puesto === "mozos" && !esRolAdmin(sesion.rol)) throw new Error("Solo un administrador convoca mozos");
+    const rol = puesto === "mozos" ? "mozo" : "bartender";
+    const sectores: readonly string[] = puesto === "mozos" ? SECTORES_MOZOS : SECTORES_BARRA;
+    const usuarios = await leerUsuarios();
+    for (const { userName, sector } of elegidos) {
+      const u = usuarios.find((x) => x.user_name === userName);
+      if (!u || (u.rol || "").toLowerCase().trim() !== rol) throw new Error(`${userName} no es del puesto ${puesto}`);
+      if (!sectores.includes(sector)) throw new Error(`Sector inválido: ${sector}`);
+    }
+    const semanaLunes = obtenerLunesSemanaActual();
+    for (const { userName, sector } of elegidos) {
+      await llamarRpc(sesion, "gestion_convocatoria", {
+        p_user_name: userName,
+        p_dia: dia,
+        p_accion: "agregar",
+        p_semana_lunes: semanaLunes,
+      });
+      await llamarRpc(sesion, "gestion_sector_convocado", {
+        p_user_name: userName,
+        p_dia: dia,
+        p_sector: sector,
+        p_semana_lunes: semanaLunes,
+      });
+    }
+    refresh();
+    return { cantidad: elegidos.length };
+  }, "No se pudo convocar al equipo");
 }

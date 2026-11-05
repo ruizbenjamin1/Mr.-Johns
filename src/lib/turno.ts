@@ -74,6 +74,12 @@ export function obtenerLunesSemanaActual(ahora: Date = new Date()): string {
   return formatearFecha(lunesDe(obtenerFechaOperativa(ahora)));
 }
 
+/** Lunes de hace N semanas (0 = esta semana), en YYYY-MM-DD. */
+export function obtenerLunesHaceSemanas(semanas: number, ahora: Date = new Date()): string {
+  const lunes = lunesDe(obtenerFechaOperativa(ahora));
+  return formatearFecha(new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() - 7 * semanas));
+}
+
 /** Lunes de la semana de cualquier timestamp (por ejemplo updated_at), en YYYY-MM-DD. */
 export function obtenerLunesDeFecha(fechaInput: string | Date): string {
   return formatearFecha(lunesDe(aRelojArgentino(new Date(fechaInput))));

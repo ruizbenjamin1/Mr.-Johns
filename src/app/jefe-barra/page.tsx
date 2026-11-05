@@ -20,6 +20,8 @@ import { adminOJefeBarra, exigirSesion, leerAgendas, leerConvocadosSemana, leerU
 import type { ProgresoStock } from "@/lib/tipos";
 import { SECTORES_BARRA } from "@/lib/stock";
 import { ExportarBarras, PropinasBarras } from "./propinas-barras";
+import { ArmarEquipo } from "@/components/panel/armar-equipo";
+import { iaDisponible } from "@/lib/ia-stock";
 
 // Panel de Jefe de Barra (antes jefe_barra.html + jefe_barra.js).
 // Gestiona solo rol "bartender": el Jefe de Barra es gestión, no personal convocable.
@@ -71,6 +73,7 @@ async function ContenidoJefeBarra() {
     <ProveedorPanel>
       <main className="mx-auto grid w-full max-w-5xl flex-1 gap-6 px-4 py-6 pb-24">
         <SeccionGrilla personal={bartenders} agendas={agendas} convocados={convocados} etiquetaConvocado="Barra" />
+        <ArmarEquipo puesto="bartenders" sectores={SECTORES_BARRA} iaDisponible={iaDisponible()} />
         <SeccionConvocados personal={bartenders} agendas={agendas} convocados={convocados} config={CONFIG_BARTENDERS} />
         <SeccionDisponibles personal={bartenders} agendas={agendas} convocados={convocados} config={CONFIG_BARTENDERS} />
         <PropinasBarras bartenders={bartenders} convocados={convocados} />
