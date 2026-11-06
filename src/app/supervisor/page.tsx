@@ -6,7 +6,7 @@ import { HistorialStock } from "@/components/panel/historial-stock";
 import { Reposicion } from "@/components/panel/reposicion";
 import { exigirSesion, leerConvocadosSemana, leerUsuarios } from "@/lib/datos";
 import { esRolSupervisor } from "@/lib/roles";
-import { obtenerDiaHoy, textoHoy } from "@/lib/turno";
+import { obtenerDiaHoy, obtenerLunesSemanaActual, textoHoy } from "@/lib/turno";
 import { EquipoDelDia } from "./equipo-del-dia";
 import { Propinas } from "./propinas";
 
@@ -34,7 +34,7 @@ async function ContenidoSupervisor() {
   // encontrar new Date() durante el prerender.
   await connection();
   await exigirSesion(esRolSupervisor);
-  const [usuarios, convocados] = await Promise.all([leerUsuarios(), leerConvocadosSemana()]);
+  const [usuarios, convocados] = await Promise.all([leerUsuarios(), leerConvocadosSemana(undefined, obtenerLunesSemanaActual())]);
 
   return (
     <main className="mx-auto grid w-full max-w-5xl flex-1 gap-6 px-4 py-6 pb-24">

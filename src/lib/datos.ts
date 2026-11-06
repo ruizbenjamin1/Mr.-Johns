@@ -2,7 +2,7 @@ import "server-only";
 import { crearClienteSupabase } from "./supabase";
 import { obtenerSesion, type Sesion } from "./sesion";
 import { esRolAdmin, esRolJefeBarra } from "./roles";
-import { obtenerLunesSemanaActual } from "./turno";
+import { obtenerLunesSemanaConvocatoria } from "./turno";
 import type { Agenda, Convocado, Resultado, Usuario } from "./tipos";
 
 // Capa de datos del servidor. Antes cada página hablaba con Supabase desde
@@ -94,12 +94,16 @@ export async function leerAgenda(userName: string): Promise<Agenda | null> {
 }
 
 /**
- * Convocados de la semana actual. Filtrar por semana evita que un "Viernes"
- * de hace un mes se mezcle con el de hoy.
+ * Convocados de una semana (por defecto, la de la convocatoria, que cambia el
+ * lunes a las 00:00). Filtrar por semana evita que un "Viernes" de hace un mes
+ * se mezcle con el de hoy.
  */
-export async function leerConvocadosSemana(userName?: string): Promise<Convocado[]> {
+export async function leerConvocadosSemana(
+  userName?: string,
+  semanaLunes: string = obtenerLunesSemanaConvocatoria()
+): Promise<Convocado[]> {
   const supabase = crearClienteSupabase();
-  let consulta = supabase.from("convocados").select("*").eq("semana_lunes", obtenerLunesSemanaActual());
+  let consulta = supabase.from("convocados").select("*").eq("semana_lunes", semanaLunes);
   if (userName) consulta = consulta.eq("user_name", userName.toLowerCase().trim());
   const { data, error } = await consulta;
   if (error) throw error;

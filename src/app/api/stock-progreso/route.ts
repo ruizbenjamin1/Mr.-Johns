@@ -1,6 +1,8 @@
 import { exigirSesion, ErrorDeAcceso, llamarRpc } from "@/lib/datos";
 import { BARRAS_STOCK } from "@/lib/stock";
 import type { ValoresStock } from "@/lib/tipos";
+import { prepararValores } from "@/lib/stock-servidor";
+import { MENSAJE_VENCIDO } from "@/lib/vencimiento-stock";
 
 // Recibe el conteo de stock cuando la app se cierra o pasa a segundo plano.
 //
@@ -31,10 +33,20 @@ export async function POST(request: Request) {
 
   try {
     const sesion = await exigirSesion();
+    let conHora: ValoresStock;
+    try {
+      conHora = await prepararValores(sesion, barra, valores);
+    } catch (err) {
+      // Pasó más de 1 día sin mandarse: ya se borró, no se guarda.
+      if (err instanceof Error && err.message === MENSAJE_VENCIDO) {
+        return Response.json({ ok: false, error: "Conteo vencido" }, { status: 410 });
+      }
+      throw err;
+    }
     await llamarRpc(sesion, "guardar_stock_progreso", {
       p_barra: barra,
       p_responsable: responsable,
-      p_valores: valores,
+      p_valores: conHora,
       p_inicial_enviado: inicialEnviado,
       p_timestamp_inicial: timestampInicial,
     });

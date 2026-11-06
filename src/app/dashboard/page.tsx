@@ -17,7 +17,7 @@ import {
   estaDisponibilidadVigente,
   obtenerDiaHoy,
   obtenerLunesDeFecha,
-  obtenerLunesSemanaActual,
+  obtenerLunesSemanaConvocatoria,
   normalizarDiaClave,
   textoRangoSemanaActual,
   yaPasoEsteDiaEnLaSemana,
@@ -60,7 +60,7 @@ async function ContenidoDashboard() {
 
   // Agenda: un día que ya pasó queda bloqueado y sin confirmar; una agenda de
   // una semana anterior se ignora y arranca en blanco.
-  const agendaVigente = !!agenda?.updated_at && obtenerLunesDeFecha(agenda.updated_at) === obtenerLunesSemanaActual();
+  const agendaVigente = !!agenda?.updated_at && obtenerLunesDeFecha(agenda.updated_at) === obtenerLunesSemanaConvocatoria();
   const vencidos = Object.fromEntries(CLAVES_DIAS.map((d) => [d, yaPasoEsteDiaEnLaSemana(d)])) as Record<ClaveDia, boolean>;
   const dias = Object.fromEntries(
     CLAVES_DIAS.map((d) => [

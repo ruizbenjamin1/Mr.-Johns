@@ -1,4 +1,5 @@
 import { Boxes } from "lucide-react";
+import { soloProductos } from "@/lib/vencimiento-stock";
 import { Seccion, TextoVacio } from "@/components/panel/seccion";
 import { Badge } from "@/components/ui/badge";
 import { BARRAS_STOCK, PRODUCTOS_STOCK } from "@/lib/stock";
@@ -18,7 +19,7 @@ export function ResumenStock({ progreso, error }: { progreso: ProgresoStock[]; e
           {BARRAS_STOCK.map((barra) => {
             const fila = porBarra[barra];
             const cargados = fila
-              ? Object.values(fila.valores || {}).filter((v) => v && (v.inicial || v.final)).length
+              ? Object.values(soloProductos(fila.valores)).filter((v) => v && (v.inicial || v.final)).length
               : 0;
             return (
               <div key={barra} className="bg-muted/30 flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">

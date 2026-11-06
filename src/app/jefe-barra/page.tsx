@@ -19,6 +19,7 @@ import { BotonOcultar, FormularioAlta, PanelBloqueado, TablaUsuarios } from "@/c
 import { Badge } from "@/components/ui/badge";
 import { adminOJefeBarra, exigirSesion, leerAgendas, leerConvocadosSemana, leerUsuarios, llamarRpc } from "@/lib/datos";
 import type { ProgresoStock } from "@/lib/tipos";
+import { estaVencido } from "@/lib/vencimiento-stock";
 import { SECTORES_BARRA } from "@/lib/stock";
 import { ExportarBarras, PropinasBarras } from "./propinas-barras";
 import { ArmarEquipo } from "@/components/panel/armar-equipo";
@@ -61,7 +62,8 @@ async function ContenidoJefeBarra() {
     leerConvocadosSemana(),
     panelDesbloqueado("jefe-barra"),
     llamarRpc<ProgresoStock[] | null>(sesion, "listar_stock_progreso")
-      .then((filas) => ({ filas: filas || [], error: false }))
+      // Los conteos vencidos (más de 1 día sin mandarse) no cuentan como "en curso".
+      .then((filas) => ({ filas: (filas || []).filter((f) => !estaVencido(f.valores)), error: false }))
       .catch(() => ({ filas: [] as ProgresoStock[], error: true })),
   ]);
   const bartenders = usuarios.filter((u) => (u.rol || "").toLowerCase().trim() === "bartender");

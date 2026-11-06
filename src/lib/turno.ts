@@ -3,13 +3,17 @@
 // IMPORTANTE: todo se calcula con la hora de Argentina, no con la del lugar
 // donde corre el código. Antes todo corría en el navegador (que ya estaba en
 // hora argentina), pero ahora parte corre en el servidor, y en Vercel el
-// servidor está en UTC: sin esto, el corte de turno de las 6 AM caería a las
-// 3 AM de acá.
+// servidor está en UTC: sin esto, el corte de turno del mediodía caería a las
+// 9 AM de acá.
 
 export const ZONA_HORARIA = "America/Argentina/Buenos_Aires";
 
-/** El turno arranca de noche y recién termina a las 6:00 del día siguiente. */
-export const HORA_CORTE_TURNO = 6;
+/**
+ * El turno arranca de noche y termina de madrugada, pero hasta el mediodía del
+ * día siguiente la app lo sigue tomando como "hoy": así da tiempo a cargar las
+ * propinas y ver a los convocados de la noche aunque se haga después de cerrar.
+ */
+export const HORA_CORTE_TURNO = 12;
 
 /** Días como se guardan en la base (columna "dia" de convocados y p_dia de las RPC). */
 export const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"] as const;
@@ -58,7 +62,7 @@ function lunesDe(fecha: Date): Date {
 }
 
 /**
- * "Hoy" según el turno: mientras sea antes de las 6 AM, sigue siendo ayer.
+ * "Hoy" según el turno: mientras sea antes del mediodía, sigue siendo ayer.
  * Así el personal convocado para "anoche" no desaparece apenas pasa la medianoche.
  */
 export function obtenerFechaOperativa(ahora: Date = new Date()): Date {
@@ -69,14 +73,31 @@ export function obtenerFechaOperativa(ahora: Date = new Date()): Date {
   return new Date(reloj.getFullYear(), reloj.getMonth(), reloj.getDate());
 }
 
-/** Lunes de la semana operativa actual, en YYYY-MM-DD. */
+/** Lunes de la semana operativa actual (cambia el lunes al mediodía), en YYYY-MM-DD. Para el stock y el "hoy" del turno. */
 export function obtenerLunesSemanaActual(ahora: Date = new Date()): string {
   return formatearFecha(lunesDe(obtenerFechaOperativa(ahora)));
 }
 
+// === SEMANA DE LA CONVOCATORIA ===
+// La convocatoria (disponibilidad, convocar, sectores y propinas del panel)
+// usa la semana de calendario: la semana nueva arranca el lunes a las 00:00,
+// apenas termina el domingo. El resto (el "hoy" del turno, el stock) sigue
+// con el corte del mediodía.
+
+/** Fecha de hoy en Argentina, sin corte de turno. */
+function fechaCalendario(ahora: Date = new Date()): Date {
+  const reloj = aRelojArgentino(ahora);
+  return new Date(reloj.getFullYear(), reloj.getMonth(), reloj.getDate());
+}
+
+/** Lunes de la semana de la convocatoria (cambia el lunes a las 00:00), en YYYY-MM-DD. */
+export function obtenerLunesSemanaConvocatoria(ahora: Date = new Date()): string {
+  return formatearFecha(lunesDe(fechaCalendario(ahora)));
+}
+
 /** Lunes de hace N semanas (0 = esta semana), en YYYY-MM-DD. */
 export function obtenerLunesHaceSemanas(semanas: number, ahora: Date = new Date()): string {
-  const lunes = lunesDe(obtenerFechaOperativa(ahora));
+  const lunes = lunesDe(fechaCalendario(ahora));
   return formatearFecha(new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() - 7 * semanas));
 }
 
@@ -90,12 +111,12 @@ export function obtenerDiaHoy(ahora: Date = new Date()): DiaSemana {
   return NOMBRES_POR_GETDAY[obtenerFechaOperativa(ahora).getDay()];
 }
 
-/** Índice 0-6 del día de hoy, con Lunes = 0. */
+/** Índice 0-6 del día de hoy en el calendario, con Lunes = 0. */
 function indiceDiaHoy(ahora: Date = new Date()): number {
-  return (obtenerFechaOperativa(ahora).getDay() + 6) % 7;
+  return (fechaCalendario(ahora).getDay() + 6) % 7;
 }
 
-/** true si ese día de la semana actual ya pasó. */
+/** true si ese día de la semana de la convocatoria ya pasó (cambia a las 00:00). */
 export function yaPasoEsteDiaEnLaSemana(dia: string, ahora: Date = new Date()): boolean {
   const indice = (CLAVES_DIAS as readonly string[]).indexOf(normalizarDiaClave(dia));
   if (indice === -1) return false;
@@ -113,12 +134,12 @@ export function estaDisponibilidadVigente(
 ): boolean {
   if (yaPasoEsteDiaEnLaSemana(dia, ahora)) return false;
   if (!fechaActualizacion) return false;
-  return obtenerLunesDeFecha(fechaActualizacion) === obtenerLunesSemanaActual(ahora);
+  return obtenerLunesDeFecha(fechaActualizacion) === obtenerLunesSemanaConvocatoria(ahora);
 }
 
 /** "Semana del 2 al 8 de Noviembre" (o con los dos meses si la semana cruza de mes). */
 export function textoRangoSemanaActual(ahora: Date = new Date()): string {
-  const lunes = lunesDe(obtenerFechaOperativa(ahora));
+  const lunes = lunesDe(fechaCalendario(ahora));
   const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
   const mes = (f: Date) => f.toLocaleDateString("es-AR", { month: "long" });
   const mesLunes = mes(lunes);

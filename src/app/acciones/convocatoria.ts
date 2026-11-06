@@ -25,7 +25,7 @@ import {
   fechaHoyArgentina,
   normalizarDiaClave,
   obtenerLunesHaceSemanas,
-  obtenerLunesSemanaActual,
+  obtenerLunesSemanaConvocatoria,
   type ClaveDia,
 } from "@/lib/turno";
 
@@ -44,7 +44,7 @@ export async function alternarConvocatoria(userName: string, dia: string, estaCo
       p_user_name: userName,
       p_dia: dia,
       p_accion: estaConvocado ? "quitar" : "agregar",
-      p_semana_lunes: obtenerLunesSemanaActual(),
+      p_semana_lunes: obtenerLunesSemanaConvocatoria(),
     });
     refresh();
   }, "No se pudo actualizar la convocatoria");
@@ -58,7 +58,7 @@ export async function guardarSector(userName: string, dia: string, sector: strin
       p_user_name: userName,
       p_dia: dia,
       p_sector: sector,
-      p_semana_lunes: obtenerLunesSemanaActual(),
+      p_semana_lunes: obtenerLunesSemanaConvocatoria(),
     });
     refresh();
   }, "No se pudo guardar el sector");
@@ -72,7 +72,7 @@ export async function guardarPropinaConvocado(userName: string, dia: string, mon
       p_user_name: userName,
       p_dia: dia,
       p_monto: Number(monto) || 0,
-      p_semana_lunes: obtenerLunesSemanaActual(),
+      p_semana_lunes: obtenerLunesSemanaConvocatoria(),
     });
   }, "No se pudo guardar la propina");
 }
@@ -106,7 +106,7 @@ export async function exportarMozos(dia: string, propinas: Record<string, number
         p_user_name: userName,
         p_dia: dia,
         p_monto: Number(monto) || 0,
-        p_semana_lunes: obtenerLunesSemanaActual(),
+        p_semana_lunes: obtenerLunesSemanaConvocatoria(),
       });
     }
 
@@ -282,7 +282,7 @@ export async function convocarEquipo(
       if (!u || (u.rol || "").toLowerCase().trim() !== rol) throw new Error(`${userName} no es del puesto ${puesto}`);
       if (!sectores.includes(sector)) throw new Error(`Sector inválido: ${sector}`);
     }
-    const semanaLunes = obtenerLunesSemanaActual();
+    const semanaLunes = obtenerLunesSemanaConvocatoria();
     for (const { userName, sector } of elegidos) {
       await llamarRpc(sesion, "gestion_convocatoria", {
         p_user_name: userName,

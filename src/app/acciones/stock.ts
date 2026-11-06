@@ -6,6 +6,8 @@ import { parsearNumeroDecimal } from "@/lib/numeros";
 import { BARRAS_STOCK, PRODUCTOS_STOCK } from "@/lib/stock";
 import { obtenerLunesSemanaActual, ZONA_HORARIA } from "@/lib/turno";
 import type { ProgresoStock, ValoresStock } from "@/lib/tipos";
+import { estaVencido, inicioDelConteo } from "@/lib/vencimiento-stock";
+import { prepararValores } from "@/lib/stock-servidor";
 
 // Conteo de stock del bartender. El progreso se guarda en Supabase por BARRA
 // (no por cuenta ni por dispositivo): cualquier bartender de esa barra puede
@@ -21,12 +23,18 @@ function fechaEnvio() {
   return new Date().toLocaleString("es-AR", { timeZone: ZONA_HORARIA });
 }
 
+
 export async function obtenerProgresoStock(barra: string) {
   return capturar(async () => {
     validarBarra(barra);
     const sesion = await exigirSesion();
     const filas = await llamarRpc<ProgresoStock[] | null>(sesion, "obtener_stock_progreso", { p_barra: barra });
-    return filas?.[0] ?? null;
+    const progreso = filas?.[0] ?? null;
+    if (progreso && estaVencido(progreso.valores)) {
+      await llamarRpc(sesion, "limpiar_stock_progreso", { p_barra: barra });
+      return { progreso: null, vencido: true };
+    }
+    return { progreso, vencido: false };
   }, "No se pudo cargar el progreso de stock");
 }
 
@@ -40,13 +48,16 @@ export async function guardarProgresoStock(
   return capturar(async () => {
     validarBarra(barra);
     const sesion = await exigirSesion();
+    const conHora = await prepararValores(sesion, barra, valores);
     await llamarRpc(sesion, "guardar_stock_progreso", {
       p_barra: barra,
       p_responsable: responsable,
-      p_valores: valores,
+      p_valores: conHora,
       p_inicial_enviado: inicialEnviado,
       p_timestamp_inicial: timestampInicial,
     });
+    // El celular se queda con la hora de inicio para no reiniciar el plazo en cada guardado.
+    return { iniciadoEn: new Date(inicioDelConteo(conHora)!).toISOString() };
   }, "No se pudo guardar el progreso de stock");
 }
 
@@ -59,6 +70,7 @@ export async function enviarStockInicial(barra: string, responsable: string, val
     validarBarra(barra);
     if (!responsable.trim()) throw new Error("Falta el nombre del responsable");
     const sesion = await exigirSesion();
+    const conHora = await prepararValores(sesion, barra, valores);
 
     const semana = obtenerLunesSemanaActual();
     const fecha = fechaEnvio();
@@ -77,7 +89,7 @@ export async function enviarStockInicial(barra: string, responsable: string, val
     await llamarRpc(sesion, "guardar_stock_progreso", {
       p_barra: barra,
       p_responsable: responsable.trim(),
-      p_valores: valores,
+      p_valores: conHora,
       p_inicial_enviado: true,
       p_timestamp_inicial: timestamp,
     });
@@ -94,6 +106,7 @@ export async function enviarStockFinal(barra: string, responsable: string, valor
     validarBarra(barra);
     if (!responsable.trim()) throw new Error("Falta el nombre del responsable");
     const sesion = await exigirSesion();
+    await prepararValores(sesion, barra, valores);
 
     const semana = obtenerLunesSemanaActual();
     const fecha = fechaEnvio();

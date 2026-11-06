@@ -1,10 +1,10 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, CloudOff, Loader2, Search, Send } from "lucide-react";
-import { EsqueletoTabla } from "@/components/esqueletos";
+import { CheckCircle2, Clock, CloudOff, Loader2, Search, Send } from "lucide-react";
 import { toast } from "sonner";
 import { enviarStockFinal, enviarStockInicial, guardarProgresoStock, obtenerProgresoStock } from "@/app/acciones/stock";
+import { EsqueletoTabla } from "@/components/esqueletos";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,9 @@ import { sanearDecimal } from "@/lib/numeros";
 import { CargaIA } from "./carga-ia";
 import { anotarCambio, borrarRespaldo, combinarConRespaldo, leerRespaldo } from "@/lib/respaldo-stock";
 import { BARRAS_STOCK, PRODUCTOS_STOCK } from "@/lib/stock";
+import { ZONA_HORARIA } from "@/lib/turno";
 import type { ValoresStock } from "@/lib/tipos";
+import { CLAVE_INICIO, MENSAJE_VENCIDO, PLAZO_STOCK_MS, venceEn } from "@/lib/vencimiento-stock";
 
 const COOLDOWN_INICIAL_MS = 5 * 60 * 1000; // 5 minutos entre reenvíos del Inicial
 const CLAVE_ULTIMA_BARRA = "ultimaBarraStockDispositivo";
@@ -99,9 +101,20 @@ export function ConteoStock({ iaDisponible = false }: { iaDisponible?: boolean }
     const r = await guardarProgresoStock(d.barra, d.responsable, d.valores, d.inicialEnviado, d.timestampInicial);
     guardando.current = false;
 
+    if (!r.ok && r.error.includes(MENSAJE_VENCIDO)) {
+      if (datos.current.barra === d.barra) reiniciarPorVencimiento(d.barra);
+      return false;
+    }
     if (r.ok) {
       versionGuardada.current = Math.max(versionGuardada.current, versionEnviada);
       setErrorGuardado(null);
+      // La primera vez el servidor le pone la hora de inicio: se guarda acá
+      // para que el plazo de 1 día no se reinicie en cada guardado.
+      if (datos.current.barra === d.barra && !datos.current.valores[CLAVE_INICIO]) {
+        const conHora = { ...datos.current.valores, [CLAVE_INICIO]: { inicial: r.datos.iniciadoEn, final: "" } };
+        actualizarDatos({ valores: conHora });
+        setValores(conHora);
+      }
       if (!hayPendientes()) {
         borrarRespaldo(d.barra);
         setEstadoGuardado("guardado");
@@ -116,7 +129,24 @@ export function ConteoStock({ iaDisponible = false }: { iaDisponible?: boolean }
     setErrorGuardado(r.error);
     temporizador.current = setTimeout(() => void guardarAhora(), REINTENTO_MS);
     return false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reiniciarPorVencimiento solo usa refs y setters
   }, []);
+
+  // El conteo pasó más de 1 día sin mandarse: el servidor ya lo borró, acá
+  // también se borra (pantalla y respaldo del celular) y se arranca de cero.
+  function reiniciarPorVencimiento(barraVencida: string) {
+    if (temporizador.current) clearTimeout(temporizador.current);
+    borrarRespaldo(barraVencida);
+    version.current = 0;
+    versionGuardada.current = 0;
+    setEstadoGuardado("guardado");
+    setErrorGuardado(null);
+    setValores({});
+    setInicialEnviado(false);
+    setTimestampInicial(null);
+    actualizarDatos({ valores: {}, inicialEnviado: false, timestampInicial: null });
+    toast.warning(`Conteo de ${barraVencida}: ${MENSAJE_VENCIDO}`, { duration: 10000 });
+  }
 
   function programarGuardado() {
     version.current += 1;
@@ -144,18 +174,29 @@ export function ConteoStock({ iaDisponible = false }: { iaDisponible?: boolean }
       setCargandoBarra(false);
       if (datos.current.barra !== nuevaBarra) return; // cambiaron de barra mientras cargaba
 
-      const respaldo = leerRespaldo(nuevaBarra);
+      let respaldo = leerRespaldo(nuevaBarra);
+      if (r.ok && r.datos.vencido) {
+        // Pasó más de 1 día sin mandarse: el servidor ya lo borró.
+        reiniciarPorVencimiento(nuevaBarra);
+        return;
+      }
+      // Un respaldo del celular de hace más de 1 día tampoco se recupera.
+      if (respaldo && Date.now() - respaldo.guardadoEn > PLAZO_STOCK_MS) {
+        borrarRespaldo(nuevaBarra);
+        respaldo = null;
+      }
       if (!r.ok && !respaldo) {
         toast.error(r.error);
         return;
       }
+      const progreso = r.ok ? r.datos.progreso : null;
       const servidor = {
-        responsable: (r.ok && r.datos?.responsable) || datos.current.responsable,
-        valores: (r.ok && r.datos?.valores) || {},
+        responsable: progreso?.responsable || datos.current.responsable,
+        valores: progreso?.valores || {},
       };
       const combinado = combinarConRespaldo(servidor, respaldo);
-      const enviado = r.ok ? !!r.datos?.inicial_enviado : false;
-      const momento = r.ok ? (r.datos?.timestamp_inicial ?? null) : null;
+      const enviado = !!progreso?.inicial_enviado;
+      const momento = progreso?.timestamp_inicial ?? null;
 
       setValores(combinado.valores);
       setResponsable(combinado.responsable);
@@ -293,6 +334,8 @@ export function ConteoStock({ iaDisponible = false }: { iaDisponible?: boolean }
       actualizarDatos({ inicialEnviado: true, timestampInicial: r.datos.timestampInicial });
       setAhora(new Date(r.datos.timestampInicial).getTime());
       toast.success("Inicial enviado y confirmado por la planilla. Ya podés cargar el Final cuando termine el turno.");
+    } else if (r.error.includes(MENSAJE_VENCIDO)) {
+      reiniciarPorVencimiento(barra);
     } else {
       toast.error(r.error, { action: { label: "Reintentar", onClick: enviarInicial }, duration: 10000 });
     }
@@ -314,6 +357,8 @@ export function ConteoStock({ iaDisponible = false }: { iaDisponible?: boolean }
       setInicialEnviado(false);
       setTimestampInicial(null);
       actualizarDatos({ valores: {}, inicialEnviado: false, timestampInicial: null });
+    } else if (r.error.includes(MENSAJE_VENCIDO)) {
+      reiniciarPorVencimiento(barra);
     } else {
       // Si falla, el progreso NO se borra: se puede reintentar con los mismos números.
       toast.error(r.error, { action: { label: "Reintentar", onClick: enviarFinal }, duration: 10000 });
@@ -329,6 +374,16 @@ export function ConteoStock({ iaDisponible = false }: { iaDisponible?: boolean }
     : restante > 0
       ? `Inicial enviado. Podés reenviarlo en ${cuentaRegresiva} si te equivocaste, o cargar el Final cuando termine el turno.`
       : "Inicial ya enviado. Podés reenviarlo si te equivocaste, o cargar el Final cuando termine el turno.";
+
+  const limite = venceEn(valores);
+  const textoPlazo = limite
+    ? `Tenés tiempo hasta el ${new Date(limite).toLocaleString("es-AR", {
+        timeZone: ZONA_HORARIA,
+        weekday: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+      })} para mandar el Final. Si no, el conteo se borra.`
+    : null;
 
   const texto = busqueda.toLowerCase().trim();
   const productos = PRODUCTOS_STOCK.filter(
@@ -395,6 +450,13 @@ export function ConteoStock({ iaDisponible = false }: { iaDisponible?: boolean }
               </span>
             </>
           )}
+        </p>
+      )}
+
+      {barra && !cargandoBarra && textoPlazo && (
+        <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+          <Clock className="size-3.5 shrink-0" />
+          {textoPlazo}
         </p>
       )}
 
