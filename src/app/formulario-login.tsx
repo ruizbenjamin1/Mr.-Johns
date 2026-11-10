@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Loader2, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,10 @@ const estadoInicial: EstadoLogin = { error: null };
 
 export function FormularioLogin() {
   const [estado, accion, enviando] = useActionState(iniciarSesion, estadoInicial);
+  // Campos controlados: si el ingreso falla, React no vacía el formulario y
+  // Chrome no vuelve a pisarlo con el usuario guardado. Lo que escribiste queda.
+  const [usuario, setUsuario] = useState("");
+  const [password, setPassword] = useState("");
 
   useEffect(() => {
     if (estado.error) toast.error(estado.error);
@@ -26,6 +30,8 @@ export function FormularioLogin() {
           <Input
             id="usuario"
             name="usuario"
+            value={usuario}
+            onChange={(e) => setUsuario(e.target.value)}
             autoComplete="username"
             autoCapitalize="none"
             required
@@ -43,6 +49,8 @@ export function FormularioLogin() {
             id="password"
             name="password"
             type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
             required
             className="pl-9"

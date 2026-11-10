@@ -234,27 +234,28 @@ function FilaConvocado({
 // === EQUIPO CONVOCADO DEL DÍA ===
 export function SeccionConvocados({
   personal,
-  agendas,
   convocados,
   config,
 }: {
   personal: Usuario[];
-  agendas: Agenda[];
+  /** Ya no se usa: los convocados aparecen sin importar la disponibilidad. */
+  agendas?: Agenda[];
   convocados: Convocado[];
   config: ConfigConvocatoria;
 }) {
   const { dia, setDia, propinas, sectores } = usePanel();
   const esMozo = config.modo === "mozos";
 
-  // Igual que antes: solo aparece quien además tiene disponibilidad vigente ese día.
+  // Todo el que está convocado ese día aparece, aunque el día ya haya pasado
+  // o haya cambiado su disponibilidad: así se le puede cargar la propina
+  // después del turno (antes desaparecía a la medianoche) y la pantalla
+  // coincide con lo que se exporta a la planilla.
   const filas = personal
     .map((u) => ({
       usuario: u,
       convocado: convocados.find((c) => c.user_name === u.user_name && esConvocadoDelDia(c.dia, dia)),
     }))
-    .filter((f): f is { usuario: Usuario; convocado: Convocado } =>
-      !!f.convocado && disponibleEseDia(agendas.find((a) => a.user_name === f.usuario.user_name), dia)
-    );
+    .filter((f): f is { usuario: Usuario; convocado: Convocado } => !!f.convocado);
 
   const reparto = repartirPropinasMozos(
     filas.map((f) => ({
